@@ -1,0 +1,4324 @@
+<title>Hotaru</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@600;900&display=swap">
+<style>
+/* Hotaru commits to one visual world — a dark field at night. Every colour is
+   painted explicitly so the page holds whatever ground the host puts behind it. */
+:root {
+  color-scheme: dark;
+  --ink:    #04050A;
+  --ink-2:  #090B14;
+  --glass:  rgba(12, 15, 24, 0.62);
+  --edge:   rgba(255, 214, 150, 0.16);
+  --edge-2: rgba(255, 214, 150, 0.30);
+  --text:   #EDE4D6;
+  --text-2: rgba(237, 228, 214, 0.62);
+  --text-3: rgba(237, 228, 214, 0.34);
+  --amber:  #FFC15E;
+  --amber-2:#FF9E3D;
+  --jp: "Zen Kaku Gothic New", ui-sans-serif, system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --mincho: "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--jp);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: radial-gradient(120% 90% at 50% 45%, #0A0C16 0%, #04050A 70%);
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  gap: 12px;
+}
+.ui > * { min-width: 0; }
+
+/* ── wordmark ──────────────────────────────────────────────────────── */
+.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.mark { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.mark .kanji {
+  font-family: var(--mincho);
+  font-weight: 900;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--amber);
+  text-shadow: 0 0 22px rgba(255, 158, 61, 0.55), 0 0 60px rgba(255, 158, 61, 0.22);
+}
+.mark .name {
+  font-family: var(--mincho);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.34em;
+  color: var(--text-2);
+  text-transform: uppercase;
+}
+.mark .sub {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+/* The field behind the overlay can be bright, so every floating label carries
+   its own shadow rather than trusting the background to stay dark. */
+.mark .name, .mark .sub, .hud, .hint {
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.92), 0 0 3px rgba(0, 0, 0, 0.85);
+}
+
+.hud {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.hud b { font-weight: 400; color: var(--amber); }
+
+/* ── hint ──────────────────────────────────────────────────────────── */
+.hint {
+  align-self: end;
+  justify-self: center;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--text-2);
+  padding-bottom: 6px;
+  opacity: 0;
+  animation: hint 7.5s ease-in-out 1.2s forwards;
+}
+@keyframes hint {
+  0% { opacity: 0; transform: translateY(6px); }
+  14% { opacity: 1; transform: none; }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .hint { animation: none; opacity: 1; } }
+
+/* ── dock ──────────────────────────────────────────────────────────── */
+.dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.field {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: min(420px, 100%);
+  background: var(--glass);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  transition: border-color .2s, box-shadow .2s;
+}
+.field:focus-within {
+  border-color: var(--edge-2);
+  box-shadow: 0 0 0 3px rgba(255, 193, 94, 0.09), 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.field input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 6px 11px 20px;
+  border: 0;
+  background: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--jp);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+}
+.field input::placeholder { color: var(--text-3); letter-spacing: 0.1em; }
+.field button {
+  flex: none;
+  width: 34px; height: 34px;
+  margin-right: 5px;
+  border: 0; border-radius: 50%;
+  background: none;
+  color: var(--text-3);
+  font-size: 17px; line-height: 1;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.field button:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+
+/* The one verb on the page: stop holding the shape together and let the
+   particles pull on each other instead. */
+.release {
+  pointer-events: auto;
+  padding: 9px 26px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--amber), var(--amber-2));
+  color: #21160A;
+  font-family: var(--mincho);
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  cursor: pointer;
+  box-shadow: 0 0 26px rgba(255, 158, 61, 0.35), 0 6px 20px rgba(0, 0, 0, 0.45);
+  transition: transform .14s, box-shadow .2s, filter .2s;
+}
+.release:hover { filter: brightness(1.08); box-shadow: 0 0 34px rgba(255, 158, 61, 0.5), 0 6px 20px rgba(0, 0, 0, 0.45); }
+.release:active { transform: translateY(1px); }
+.release[hidden] { display: none !important; }
+.release.on {
+  background: none;
+  border: 1px solid var(--edge-2);
+  color: var(--text-2);
+  box-shadow: none;
+  font-weight: 400;
+}
+
+.chips {
+  pointer-events: auto;
+  display: flex;
+  gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 2px 2px 4px;
+  scrollbar-width: none;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chips button {
+  flex: none;
+  padding: 6px 14px;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text-2);
+  font-family: var(--jp);
+  font-size: 12.5px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.chips button:hover { color: var(--text); border-color: var(--edge-2); }
+.chips button[aria-pressed="true"] {
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--amber), var(--amber-2));
+  border-color: transparent;
+  font-weight: 700;
+}
+
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+
+/* ── failure card ──────────────────────────────────────────────────── */
+.fail {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 5, 10, 0.92);
+  pointer-events: auto;
+}
+.fail[hidden] { display: none !important; }
+.fail div {
+  max-width: 34em;
+  text-align: center;
+}
+.fail h2 {
+  margin: 0 0 10px;
+  font-family: var(--mincho);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--amber);
+}
+.fail p { margin: 0 0 6px; color: var(--text-2); font-size: 13.5px; }
+.fail code {
+  display: block;
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  word-break: break-word;
+}
+
+@media (max-width: 560px) {
+  .mark .kanji { font-size: 25px; }
+  .mark .name { font-size: 12.5px; letter-spacing: 0.26em; }
+  .mark .sub { display: none; }
+  .hud { font-size: 9.5px; }
+  .field input { font-size: 16px; }
+}
+</style>
+
+<canvas id="stage" aria-label="光の粒子で描かれる文字と形"></canvas>
+
+<div class="ui">
+  <div class="top">
+    <div class="mark">
+      <span class="kanji">蛍</span>
+      <span class="name">Hotaru</span>
+      <span class="sub">百万の光が言葉のかたちに集まり、放てば自らの重力で崩れる</span>
+    </div>
+    <div class="hud" id="hud"></div>
+  </div>
+
+  <div class="hint" id="hint">なぞると光が散り、「放つ」で重力に委ねられます</div>
+
+  <div class="dock">
+    <div class="field">
+      <input id="word" type="text" maxlength="14" placeholder="名前や言葉を入力"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+        aria-label="光で描く言葉">
+      <button id="clear" type="button" aria-label="消す">&times;</button>
+    </div>
+    <button class="release" id="release" type="button" hidden>放つ</button>
+    <div class="chips" id="chips" role="group" aria-label="かたちを選ぶ"></div>
+  </div>
+</div>
+
+<div class="fail" id="fail" hidden>
+  <div>
+    <h2>この画面では光を灯せません</h2>
+    <p id="fail-msg"></p>
+    <p>WebGL に対応した最新の Chrome、Safari、Firefox でお試しください。</p>
+    <code id="fail-detail"></code>
+  </div>
+</div>
+
+<script>
+/* ─── hotaru/noise.js ───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Hotaru · noise
+   ---------------------------------------------------------------------------
+   GLSL ES 3.00 source for 3D simplex noise, fBm and curl noise, plus a
+   JavaScript mirror of each so the shaders can be validated on the CPU.
+
+   The simplex implementation is the Ashima Arts / Stefan Gustavson
+   "webgl-noise" noise3D.glsl (MIT / public domain), transcribed verbatim.
+   The JavaScript below is a line-for-line scalar expansion of that same
+   source: every constant is written with the same literal it has in the
+   shader (1.0/6.0, 289.0, 34.0, 49.0, 0.142857142857, 1.79284291400159,
+   0.85373472095314, 0.6, 42.0) so that test/noise.test.js can diff the two
+   textually as well as numerically.
+
+   Plain script. Publishes exactly one global: HotaruNoise.
+   No import/export, no require, no window, no document, no Math.random.
+   ───────────────────────────────────────────────────────────────────────── */
+(function (root) {
+  "use strict";
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     1. GLSL — simplex 3D (Ashima Arts / Stefan Gustavson, verbatim)
+
+     One deliberate property of this implementation is worth knowing before
+     you build on it: the kernel radius is 0.6 (max(0.6 - r*r, 0.0)), not the
+     0.5 that would make the kernel vanish exactly at the neighbouring corner.
+     0.6 gives noticeably more contrast — which is why webgl-noise ships it —
+     at the cost of a small step at simplex cell boundaries, where a corner
+     enters or leaves the sum while its weight is still non-zero. Measured
+     over thousands of bisected boundary crossings that step is at most about
+     6e-3 out of a [-1, 1] range (mean 3e-4), on a measure-zero surface.
+     It is invisible in the field and harmless to the curl's divergence, which
+     is an exact discrete identity rather than a property of smoothness.
+     Kept as-is: this is the reference implementation, not a variant of it.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  var GLSL_SIMPLEX3 = [
+    "// Description : Array and textureless GLSL 2D/3D/4D simplex",
+    "//               noise functions.",
+    "//      Author : Ian McEwan, Ashima Arts.",
+    "//  Maintainer : stegu",
+    "//     Lastmod : 20110822 (ijm)",
+    "//     License : Copyright (C) 2011 Ashima Arts. All rights reserved.",
+    "//               Distributed under the MIT License. See LICENSE file.",
+    "//               https://github.com/ashima/webgl-noise",
+    "//               https://github.com/stegu/webgl-noise",
+    "",
+    "vec3 mod289(vec3 x) {",
+    "  return x - floor(x * (1.0 / 289.0)) * 289.0;",
+    "}",
+    "",
+    "vec4 mod289(vec4 x) {",
+    "  return x - floor(x * (1.0 / 289.0)) * 289.0;",
+    "}",
+    "",
+    "vec4 permute(vec4 x) {",
+    "     return mod289(((x*34.0)+1.0)*x);",
+    "}",
+    "",
+    "vec4 taylorInvSqrt(vec4 r) {",
+    "  return 1.79284291400159 - 0.85373472095314 * r;",
+    "}",
+    "",
+    "float snoise(vec3 v) {",
+    "  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;",
+    "  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);",
+    "",
+    "// First corner",
+    "  vec3 i  = floor(v + dot(v, C.yyy) );",
+    "  vec3 x0 =   v - i + dot(i, C.xxx) ;",
+    "",
+    "// Other corners",
+    "  vec3 g = step(x0.yzx, x0.xyz);",
+    "  vec3 l = 1.0 - g;",
+    "  vec3 i1 = min( g.xyz, l.zxy );",
+    "  vec3 i2 = max( g.xyz, l.zxy );",
+    "",
+    "  //   x0 = x0 - 0.0 + 0.0 * C.xxx;",
+    "  //   x1 = x0 - i1  + 1.0 * C.xxx;",
+    "  //   x2 = x0 - i2  + 2.0 * C.xxx;",
+    "  //   x3 = x0 - 1.0 + 3.0 * C.xxx;",
+    "  vec3 x1 = x0 - i1 + C.xxx;",
+    "  vec3 x2 = x0 - i2 + C.yyy; // 2.0*C.x = 1/3 = C.y",
+    "  vec3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y",
+    "",
+    "// Permutations",
+    "  i = mod289(i);",
+    "  vec4 p = permute( permute( permute(",
+    "             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))",
+    "           + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))",
+    "           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));",
+    "",
+    "// Gradients: 7x7 points over a square, mapped onto an octahedron.",
+    "// The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)",
+    "  float n_ = 0.142857142857; // 1.0/7.0",
+    "  vec3  ns = n_ * D.wyz - D.xzx;",
+    "",
+    "  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  //  mod(p,7*7)",
+    "",
+    "  vec4 x_ = floor(j * ns.z);",
+    "  vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)",
+    "",
+    "  vec4 x = x_ *ns.x + ns.yyyy;",
+    "  vec4 y = y_ *ns.x + ns.yyyy;",
+    "  vec4 h = 1.0 - abs(x) - abs(y);",
+    "",
+    "  vec4 b0 = vec4( x.xy, y.xy );",
+    "  vec4 b1 = vec4( x.zw, y.zw );",
+    "",
+    "  //vec4 s0 = vec4(lessThan(b0,0.0))*2.0 - 1.0;",
+    "  //vec4 s1 = vec4(lessThan(b1,0.0))*2.0 - 1.0;",
+    "  vec4 s0 = floor(b0)*2.0 + 1.0;",
+    "  vec4 s1 = floor(b1)*2.0 + 1.0;",
+    "  vec4 sh = -step(h, vec4(0.0));",
+    "",
+    "  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;",
+    "  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;",
+    "",
+    "  vec3 p0 = vec3(a0.xy,h.x);",
+    "  vec3 p1 = vec3(a0.zw,h.y);",
+    "  vec3 p2 = vec3(a1.xy,h.z);",
+    "  vec3 p3 = vec3(a1.zw,h.w);",
+    "",
+    "//Normalise gradients",
+    "  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));",
+    "  p0 *= norm.x;",
+    "  p1 *= norm.y;",
+    "  p2 *= norm.z;",
+    "  p3 *= norm.w;",
+    "",
+    "// Mix final noise value",
+    "  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);",
+    "  m = m * m;",
+    "  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1),",
+    "                                dot(p2,x2), dot(p3,x3) ) );",
+    "}",
+    ""
+  ].join("\n");
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     2. GLSL — fBm (lacunarity 2.0, gain 0.5, amplitude-normalised)
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  // Each octave is shifted by a fixed irrational-looking vector so the octaves
+  // do not all share the same lattice phase at the origin (which would show up
+  // as a static "hot spot" in the middle of the field).
+  var FBM_SHIFT_X = 17.31;
+  var FBM_SHIFT_Y = 9.73;
+  var FBM_SHIFT_Z = 23.17;
+  var FBM_MAX_OCTAVES = 8;
+
+  var GLSL_FBM3 = [
+    "// Fractal Brownian motion over snoise().",
+    "// lacunarity 2.0, gain 0.5, divided by the sum of the amplitudes so the",
+    "// result stays inside roughly [-1, 1] for any octave count.",
+    "// Requires: snoise(vec3)",
+    "float fbm(vec3 p, int octaves) {",
+    "  float sum  = 0.0;",
+    "  float amp  = 0.5;",
+    "  float norm = 0.0;",
+    "  vec3  q    = p;",
+    "  for (int i = 0; i < 8; i++) {",
+    "    if (i >= octaves) break;",
+    "    sum  += amp * snoise(q);",
+    "    norm += amp;",
+    "    amp  *= 0.5;                                       // gain",
+    "    q     = q * 2.0 + vec3(17.31, 9.73, 23.17);        // lacunarity + shift",
+    "  }",
+    "  return norm > 0.0 ? sum / norm : 0.0;",
+    "}",
+    ""
+  ].join("\n");
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     3. GLSL — curl noise (divergence-free by construction)
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  // Three fixed offsets, far enough apart that the three potential components
+  // are effectively independent scalar fields (simplex noise decorrelates over
+  // about one lattice unit; these are ~100 apart in every pair), yet small
+  // enough that mediump/highp float32 still resolves the epsilon step.
+  var CURL_O1 = [37.13, 11.71, 83.29];
+  var CURL_O2 = [-19.43, 67.87, -41.51];
+  var CURL_O3 = [91.77, -53.19, 23.63];
+  var CURL_EPS = 0.01;
+
+  var GLSL_CURL3 = [
+    "// Curl of a vector potential built from three decorrelated snoise fields.",
+    "// Because curl(psi) is taken with central differences and div() of a",
+    "// central-difference curl is an exactly cancelling sum of commuting",
+    "// difference operators, the sampled field is divergence-free to rounding.",
+    "// Requires: snoise(vec3), and precision highp float.",
+    "//",
+    "// REQUIRES highp. The central difference adds 0.01 to coordinates that are",
+    "// already offset by up to ~92, so the step must survive the addition. highp",
+    "// (float32) resolves it down to about 1e-5 of a unit and stays exact for",
+    "// |p| up to ~1e4; mediump (float16 on mobile, ~1e-3 relative) would swallow",
+    "// the step entirely and return a zero or garbage field.",
+    "const float HOTARU_CURL_EPS = 0.01;",
+    "",
+    "vec3 hotaruPotential(vec3 p) {",
+    "  return vec3(",
+    "    snoise(p + vec3( 37.13,  11.71,  83.29)),",
+    "    snoise(p + vec3(-19.43,  67.87, -41.51)),",
+    "    snoise(p + vec3( 91.77, -53.19,  23.63))",
+    "  );",
+    "}",
+    "",
+    "vec3 curlNoise(vec3 p) {",
+    "  float e = HOTARU_CURL_EPS;",
+    "  vec3 dx = vec3(e, 0.0, 0.0);",
+    "  vec3 dy = vec3(0.0, e, 0.0);",
+    "  vec3 dz = vec3(0.0, 0.0, e);",
+    "",
+    "  vec3 xm = hotaruPotential(p - dx);",
+    "  vec3 xp = hotaruPotential(p + dx);",
+    "  vec3 ym = hotaruPotential(p - dy);",
+    "  vec3 yp = hotaruPotential(p + dy);",
+    "  vec3 zm = hotaruPotential(p - dz);",
+    "  vec3 zp = hotaruPotential(p + dz);",
+    "",
+    "  //  curl = ( dPz/dy - dPy/dz, dPx/dz - dPz/dx, dPy/dx - dPx/dy )",
+    "  float cx = (yp.z - ym.z) - (zp.y - zm.y);",
+    "  float cy = (zp.x - zm.x) - (xp.z - xm.z);",
+    "  float cz = (xp.y - xm.y) - (yp.x - ym.x);",
+    "",
+    "  return vec3(cx, cy, cz) / (2.0 * e);",
+    "}",
+    ""
+  ].join("\n");
+
+  var PRELUDE = GLSL_SIMPLEX3 + "\n" + GLSL_FBM3 + "\n" + GLSL_CURL3;
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     4. JavaScript mirror
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  var floor = Math.floor;
+  var abs = Math.abs;
+  var min = Math.min;
+  var max = Math.max;
+  var f32 = Math.fround;
+
+  // const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+  var C = [1.0 / 6.0, 1.0 / 3.0];
+  // const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+  var D = [0.0, 0.5, 1.0, 2.0];
+
+  /* Two of the shader's literals sit exactly on a floor() boundary, so the
+     branch they take depends on how the literal was rounded. A GLSL compiler
+     stores them as float32, and BOTH round UP:
+
+       float32(1.0/289.0)      = 0.0034602077212184668  >  1/289
+       float32(0.142857142857) = 0.1428571492433548     >  1/7
+
+     which is precisely what makes floor(j * ns.z) land on 1 (not 0) when
+     j == 7, and floor(p * ns.z * ns.z) land on 1 (not 0) when p == 49.
+     Evaluating the same literals in float64 rounds them DOWN and produces
+     yu == 7 — an entry off the end of the 7x7 gradient table, with a
+     gradient roughly twice the intended length. So the mirror adopts the
+     float32 value of these two literals, exactly as the GPU does.
+     Every other constant is representable identically in both formats. */
+  var INV_289 = f32(1.0 / 289.0);
+  var ONE_SEVENTH = f32(0.142857142857);
+
+  // vec3/vec4 mod289(x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+  function mod289(x) {
+    return x - floor(x * INV_289) * 289.0;
+  }
+
+  // vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+  function permute(x) {
+    return mod289(((x * 34.0) + 1.0) * x);
+  }
+
+  // vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+  function taylorInvSqrt(r) {
+    return 1.79284291400159 - 0.85373472095314 * r;
+  }
+
+  /**
+   * float snoise(vec3 v) — scalar expansion of the Ashima shader above.
+   * Returns a value in roughly [-1, 1].
+   */
+  function snoise3(vx, vy, vz) {
+    // vec3 i  = floor(v + dot(v, C.yyy));
+    var dvc = (vx + vy + vz) * C[1];
+    var ix = floor(vx + dvc);
+    var iy = floor(vy + dvc);
+    var iz = floor(vz + dvc);
+    // vec3 x0 = v - i + dot(i, C.xxx);
+    var dic = (ix + iy + iz) * C[0];
+    var x0x = vx - ix + dic;
+    var x0y = vy - iy + dic;
+    var x0z = vz - iz + dic;
+
+    // vec3 g = step(x0.yzx, x0.xyz);  vec3 l = 1.0 - g;
+    var gx = x0x >= x0y ? 1.0 : 0.0;
+    var gy = x0y >= x0z ? 1.0 : 0.0;
+    var gz = x0z >= x0x ? 1.0 : 0.0;
+    var lx = 1.0 - gx;
+    var ly = 1.0 - gy;
+    var lz = 1.0 - gz;
+
+    // vec3 i1 = min(g.xyz, l.zxy);  vec3 i2 = max(g.xyz, l.zxy);
+    var i1x = min(gx, lz), i1y = min(gy, lx), i1z = min(gz, ly);
+    var i2x = max(gx, lz), i2y = max(gy, lx), i2z = max(gz, ly);
+
+    // vec3 x1 = x0 - i1 + C.xxx;
+    var x1x = x0x - i1x + C[0];
+    var x1y = x0y - i1y + C[0];
+    var x1z = x0z - i1z + C[0];
+    // vec3 x2 = x0 - i2 + C.yyy;
+    var x2x = x0x - i2x + C[1];
+    var x2y = x0y - i2y + C[1];
+    var x2z = x0z - i2z + C[1];
+    // vec3 x3 = x0 - D.yyy;
+    var x3x = x0x - D[1];
+    var x3y = x0y - D[1];
+    var x3z = x0z - D[1];
+
+    // i = mod289(i);
+    ix = mod289(ix);
+    iy = mod289(iy);
+    iz = mod289(iz);
+
+    // vec4 p = permute(permute(permute(
+    //            i.z + vec4(0.0, i1.z, i2.z, 1.0))
+    //          + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+    //          + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+    var q0 = permute(iz + 0.0);
+    var q1 = permute(iz + i1z);
+    var q2 = permute(iz + i2z);
+    var q3 = permute(iz + 1.0);
+    q0 = permute(q0 + iy + 0.0);
+    q1 = permute(q1 + iy + i1y);
+    q2 = permute(q2 + iy + i2y);
+    q3 = permute(q3 + iy + 1.0);
+    q0 = permute(q0 + ix + 0.0);
+    q1 = permute(q1 + ix + i1x);
+    q2 = permute(q2 + ix + i2x);
+    q3 = permute(q3 + ix + 1.0);
+
+    // float n_ = 0.142857142857;  vec3 ns = n_ * D.wyz - D.xzx;
+    var n_ = ONE_SEVENTH;
+    var nsx = n_ * D[3] - D[0];
+    var nsy = n_ * D[1] - D[2];
+    var nsz = n_ * D[2] - D[0];
+
+    // vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+    var j0 = q0 - 49.0 * floor(q0 * nsz * nsz);
+    var j1 = q1 - 49.0 * floor(q1 * nsz * nsz);
+    var j2 = q2 - 49.0 * floor(q2 * nsz * nsz);
+    var j3 = q3 - 49.0 * floor(q3 * nsz * nsz);
+
+    // vec4 x_ = floor(j * ns.z);  vec4 y_ = floor(j - 7.0 * x_);
+    var xu0 = floor(j0 * nsz), xu1 = floor(j1 * nsz);
+    var xu2 = floor(j2 * nsz), xu3 = floor(j3 * nsz);
+    var yu0 = floor(j0 - 7.0 * xu0), yu1 = floor(j1 - 7.0 * xu1);
+    var yu2 = floor(j2 - 7.0 * xu2), yu3 = floor(j3 - 7.0 * xu3);
+
+    // vec4 x = x_ * ns.x + ns.yyyy;  vec4 y = y_ * ns.x + ns.yyyy;
+    var X0 = xu0 * nsx + nsy, X1 = xu1 * nsx + nsy;
+    var X2 = xu2 * nsx + nsy, X3 = xu3 * nsx + nsy;
+    var Y0 = yu0 * nsx + nsy, Y1 = yu1 * nsx + nsy;
+    var Y2 = yu2 * nsx + nsy, Y3 = yu3 * nsx + nsy;
+
+    // vec4 h = 1.0 - abs(x) - abs(y);
+    var H0 = 1.0 - abs(X0) - abs(Y0);
+    var H1 = 1.0 - abs(X1) - abs(Y1);
+    var H2 = 1.0 - abs(X2) - abs(Y2);
+    var H3 = 1.0 - abs(X3) - abs(Y3);
+
+    // vec4 b0 = vec4(x.xy, y.xy);  vec4 b1 = vec4(x.zw, y.zw);
+    // vec4 s0 = floor(b0)*2.0 + 1.0;  vec4 s1 = floor(b1)*2.0 + 1.0;
+    var s0x = floor(X0) * 2.0 + 1.0;
+    var s0y = floor(X1) * 2.0 + 1.0;
+    var s0z = floor(Y0) * 2.0 + 1.0;
+    var s0w = floor(Y1) * 2.0 + 1.0;
+    var s1x = floor(X2) * 2.0 + 1.0;
+    var s1y = floor(X3) * 2.0 + 1.0;
+    var s1z = floor(Y2) * 2.0 + 1.0;
+    var s1w = floor(Y3) * 2.0 + 1.0;
+
+    // vec4 sh = -step(h, vec4(0.0));
+    var sh0 = H0 <= 0.0 ? -1.0 : 0.0;
+    var sh1 = H1 <= 0.0 ? -1.0 : 0.0;
+    var sh2 = H2 <= 0.0 ? -1.0 : 0.0;
+    var sh3 = H3 <= 0.0 ? -1.0 : 0.0;
+
+    // vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+    // vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+    // vec3 p0 = vec3(a0.xy, h.x); ... vec3 p3 = vec3(a1.zw, h.w);
+    var g0x = X0 + s0x * sh0, g0y = Y0 + s0z * sh0, g0z = H0;
+    var g1x = X1 + s0y * sh1, g1y = Y1 + s0w * sh1, g1z = H1;
+    var g2x = X2 + s1x * sh2, g2y = Y2 + s1z * sh2, g2z = H2;
+    var g3x = X3 + s1y * sh3, g3y = Y3 + s1w * sh3, g3z = H3;
+
+    // vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+    var nrm0 = taylorInvSqrt(g0x * g0x + g0y * g0y + g0z * g0z);
+    var nrm1 = taylorInvSqrt(g1x * g1x + g1y * g1y + g1z * g1z);
+    var nrm2 = taylorInvSqrt(g2x * g2x + g2y * g2y + g2z * g2z);
+    var nrm3 = taylorInvSqrt(g3x * g3x + g3y * g3y + g3z * g3z);
+    g0x *= nrm0; g0y *= nrm0; g0z *= nrm0;
+    g1x *= nrm1; g1y *= nrm1; g1z *= nrm1;
+    g2x *= nrm2; g2y *= nrm2; g2z *= nrm2;
+    g3x *= nrm3; g3y *= nrm3; g3z *= nrm3;
+
+    // vec4 m = max(0.6 - vec4(dot(x0,x0), ...), 0.0);  m = m * m;
+    var m0 = max(0.6 - (x0x * x0x + x0y * x0y + x0z * x0z), 0.0);
+    var m1 = max(0.6 - (x1x * x1x + x1y * x1y + x1z * x1z), 0.0);
+    var m2 = max(0.6 - (x2x * x2x + x2y * x2y + x2z * x2z), 0.0);
+    var m3 = max(0.6 - (x3x * x3x + x3y * x3y + x3z * x3z), 0.0);
+    m0 = m0 * m0;
+    m1 = m1 * m1;
+    m2 = m2 * m2;
+    m3 = m3 * m3;
+
+    // return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+    return 42.0 * (
+      m0 * m0 * (g0x * x0x + g0y * x0y + g0z * x0z) +
+      m1 * m1 * (g1x * x1x + g1y * x1y + g1z * x1z) +
+      m2 * m2 * (g2x * x2x + g2y * x2y + g2z * x2z) +
+      m3 * m3 * (g3x * x3x + g3y * x3y + g3z * x3z)
+    );
+  }
+
+  /**
+   * float fbm(vec3 p, int octaves) — mirror of GLSL_FBM3.
+   * lacunarity 2.0, gain 0.5, normalised by the amplitude sum.
+   */
+  function fbm3(px, py, pz, octaves) {
+    var n = octaves | 0;
+    if (n < 0) n = 0;
+    if (n > FBM_MAX_OCTAVES) n = FBM_MAX_OCTAVES;
+    var sum = 0.0;
+    var amp = 0.5;
+    var nrm = 0.0;
+    var qx = px, qy = py, qz = pz;
+    for (var i = 0; i < n; i++) {
+      sum += amp * snoise3(qx, qy, qz);
+      nrm += amp;
+      amp *= 0.5;
+      qx = qx * 2.0 + FBM_SHIFT_X;
+      qy = qy * 2.0 + FBM_SHIFT_Y;
+      qz = qz * 2.0 + FBM_SHIFT_Z;
+    }
+    return nrm > 0.0 ? sum / nrm : 0.0;
+  }
+
+  /** vec3 hotaruPotential(vec3 p) — mirror; writes into out[0..2]. */
+  function potential3(px, py, pz, out) {
+    out[0] = snoise3(px + CURL_O1[0], py + CURL_O1[1], pz + CURL_O1[2]);
+    out[1] = snoise3(px + CURL_O2[0], py + CURL_O2[1], pz + CURL_O2[2]);
+    out[2] = snoise3(px + CURL_O3[0], py + CURL_O3[1], pz + CURL_O3[2]);
+    return out;
+  }
+
+  // Scratch buffers — allocated once, reused by every curl3() call.
+  var _xm = new Float64Array(3), _xp = new Float64Array(3);
+  var _ym = new Float64Array(3), _yp = new Float64Array(3);
+  var _zm = new Float64Array(3), _zp = new Float64Array(3);
+  var _curl = new Float64Array(3);
+
+  /**
+   * vec3 curlNoise(vec3 p) — mirror of GLSL_CURL3.
+   * @param {Float64Array|Float32Array|Array} [out] optional length-3 target.
+   * @returns {Float64Array|Array} the curl vector (a shared scratch buffer if
+   *          `out` is omitted — copy it before the next call).
+   */
+  function curl3(px, py, pz, out) {
+    var e = CURL_EPS;
+    var xm = potential3(px - e, py, pz, _xm);
+    var xp = potential3(px + e, py, pz, _xp);
+    var ym = potential3(px, py - e, pz, _ym);
+    var yp = potential3(px, py + e, pz, _yp);
+    var zm = potential3(px, py, pz - e, _zm);
+    var zp = potential3(px, py, pz + e, _zp);
+
+    var inv = 1.0 / (2.0 * e);
+    var cx = ((yp[2] - ym[2]) - (zp[1] - zm[1])) * inv;
+    var cy = ((zp[0] - zm[0]) - (xp[2] - xm[2])) * inv;
+    var cz = ((xp[1] - xm[1]) - (yp[0] - ym[0])) * inv;
+
+    var dst = out || _curl;
+    dst[0] = cx;
+    dst[1] = cy;
+    dst[2] = cz;
+    return dst;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     5. Bulk helpers — allocate once, fill in place
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Fill `dst[i] = snoise3(pos[3i], pos[3i+1], pos[3i+2]) * freq`-sampled noise.
+   * @param {Float32Array} pos  positions, length 3*count
+   * @param {Float32Array} dst  output, length count
+   */
+  function fillSnoise(pos, dst, count, freq) {
+    var f = freq === undefined ? 1.0 : freq;
+    for (var i = 0, j = 0; i < count; i++, j += 3) {
+      dst[i] = snoise3(pos[j] * f, pos[j + 1] * f, pos[j + 2] * f);
+    }
+    return dst;
+  }
+
+  /**
+   * Fill `dst[3i..3i+2]` with curlNoise(pos * freq).
+   * @param {Float32Array} pos  positions, length 3*count
+   * @param {Float32Array} dst  output, length 3*count
+   */
+  function fillCurl(pos, dst, count, freq) {
+    var f = freq === undefined ? 1.0 : freq;
+    var tmp = _curl;
+    for (var i = 0, j = 0; i < count; i++, j += 3) {
+      curl3(pos[j] * f, pos[j + 1] * f, pos[j + 2] * f, tmp);
+      dst[j] = tmp[0];
+      dst[j + 1] = tmp[1];
+      dst[j + 2] = tmp[2];
+    }
+    return dst;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════ */
+
+  root.HotaruNoise = {
+    GLSL_SIMPLEX3: GLSL_SIMPLEX3,
+    GLSL_FBM3: GLSL_FBM3,
+    GLSL_CURL3: GLSL_CURL3,
+    PRELUDE: PRELUDE,
+
+    snoise3: snoise3,
+    fbm3: fbm3,
+    curl3: curl3,
+    potential3: potential3,
+
+    fillSnoise: fillSnoise,
+    fillCurl: fillCurl,
+
+    CURL_EPS: CURL_EPS,
+    CURL_OFFSETS: [CURL_O1, CURL_O2, CURL_O3],
+    FBM_MAX_OCTAVES: FBM_MAX_OCTAVES,
+    FBM_LACUNARITY: 2.0,
+    FBM_GAIN: 0.5
+  };
+})(globalThis);
+
+/* ─── hotaru/shapes.js ──────────────────────────────────────────── */
+/* hotaru/shapes.js — procedural 3D shape generators for the Hotaru particle field.
+ *
+ * Every generator has the signature fn(count, opts) -> Float32Array(count * 3),
+ * xyz triples in a right-handed space (+x right, +y up, +z toward the viewer),
+ * centred on the origin and scaled to sit comfortably inside the unit sphere.
+ * No generator ever returns a point further than 1.0 from the origin.
+ *
+ * Determinism is absolute: the only entropy is opts.seed, fed through mulberry32.
+ * Math.random() appears nowhere. Nothing here touches the DOM, timers or I/O.
+ *
+ * Plain script: one IIFE publishing the global HotaruShapes.
+ */
+(function (root) {
+  'use strict';
+
+  /* ── constants ─────────────────────────────────────────────────────────── */
+
+  var TAU = Math.PI * 2;
+  /* 2pi / phi^2 — the golden angle. Successive multiples never repeat a
+     direction, which is what keeps Fibonacci lattices free of visible seams. */
+  var GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+  var GOLDEN_FRACT = 0.6180339887498949;
+  var FIT_LIMIT = 1.0; /* every cloud is scaled down into this radius */
+
+  /* ── seeding and pseudo-randomness ─────────────────────────────────────── */
+
+  /* Accepts a number, a string or nothing and returns a well-mixed uint32, so
+     that neighbouring seeds (1, 2, 3) produce completely unrelated streams. */
+  function hashSeed(seed) {
+    var h;
+    if (typeof seed === 'string') {
+      h = 0x811c9dc5;
+      for (var i = 0; i < seed.length; i++) {
+        h ^= seed.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+      }
+    } else if (typeof seed === 'number' && isFinite(seed)) {
+      h = (Math.floor(seed) | 0) >>> 0;
+    } else {
+      h = 0x9e3779b9;
+    }
+    h ^= h >>> 16;
+    h = Math.imul(h, 0x21f0aaad);
+    h ^= h >>> 15;
+    h = Math.imul(h, 0x735a2d97);
+    h ^= h >>> 15;
+    return h >>> 0;
+  }
+
+  /* mulberry32: 32 bits of state, passes gjrand/BigCrush-lite, four lines long. */
+  function mulberry32(a) {
+    a = a >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* Box–Muller, one normal per call (the spare is discarded on purpose: keeping
+     it would make a generator's output depend on how many gaussians came before). */
+  function gauss(rng) {
+    var u = rng();
+    if (u < 1e-12) u = 1e-12;
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * rng());
+  }
+
+  /* A gaussian with the tail cut off, so one unlucky draw cannot fling a
+     particle out of the shape and force the whole cloud to be scaled down. */
+  function gaussClamped(rng, limit) {
+    var g = gauss(rng);
+    if (g > limit) return limit;
+    if (g < -limit) return -limit;
+    return g;
+  }
+
+  function clamp(v, lo, hi) {
+    return v < lo ? lo : v > hi ? hi : v;
+  }
+
+  /* Numeric knobs only: anything that is not a finite number falls back to the
+     tuned default, so one bad option cannot fill a buffer with NaN. */
+  function pick(opts, key, dflt) {
+    if (!opts) return dflt;
+    var v = opts[key];
+    return typeof v === 'number' && isFinite(v) ? v : dflt;
+  }
+
+  /* Boolean knobs: accepts true/false and 1/0 alike. */
+  function flag(opts, key, dflt) {
+    if (!opts) return dflt;
+    var v = opts[key];
+    if (v === undefined || v === null) return dflt;
+    return !!v && v !== 0;
+  }
+
+  function smoothstep(edge0, edge1, x) {
+    var t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  function alloc(count) {
+    var n = count > 0 ? Math.floor(count) : 0;
+    return new Float32Array(n * 3);
+  }
+
+  /* Uniform point inside a ball of the given radius — used to give curves
+     (helix strands, knot tube) a soft glowing thickness instead of a hairline. */
+  function ballOffset(rng, radius, out) {
+    var z = rng() * 2 - 1;
+    var t = rng() * TAU;
+    var s = Math.sqrt(Math.max(0, 1 - z * z));
+    var r = radius * Math.cbrt(rng());
+    out[0] = r * s * Math.cos(t);
+    out[1] = r * z;
+    out[2] = r * s * Math.sin(t);
+  }
+
+  /* ── small linear algebra ──────────────────────────────────────────────── */
+
+  /* Shoemake's uniform random quaternion. Used to give seeded clouds a random
+     orientation, so two seeds never line up even when the lattice is fixed. */
+  function randomQuat(rng) {
+    var u1 = rng(), u2 = rng(), u3 = rng();
+    var s1 = Math.sqrt(1 - u1), s2 = Math.sqrt(u1);
+    return [s1 * Math.sin(TAU * u2), s1 * Math.cos(TAU * u2), s2 * Math.sin(TAU * u3), s2 * Math.cos(TAU * u3)];
+  }
+
+  /* v' = v + 2 * cross(q.xyz, cross(q.xyz, v) + q.w * v) */
+  function rotateByQuat(q, x, y, z, out) {
+    var qx = q[0], qy = q[1], qz = q[2], qw = q[3];
+    var tx = qy * z - qz * y + qw * x;
+    var ty = qz * x - qx * z + qw * y;
+    var tz = qx * y - qy * x + qw * z;
+    out[0] = x + 2 * (qy * tz - qz * ty);
+    out[1] = y + 2 * (qz * tx - qx * tz);
+    out[2] = z + 2 * (qx * ty - qy * tx);
+  }
+
+  /* Rodrigues rotation of v about a unit axis. */
+  function rotateAxis(vx, vy, vz, ax, ay, az, angle, out) {
+    var c = Math.cos(angle), s = Math.sin(angle);
+    var d = ax * vx + ay * vy + az * vz;
+    out[0] = vx * c + (ay * vz - az * vy) * s + ax * d * (1 - c);
+    out[1] = vy * c + (az * vx - ax * vz) * s + ay * d * (1 - c);
+    out[2] = vz * c + (ax * vy - ay * vx) * s + az * d * (1 - c);
+  }
+
+  /* ── radial density sampling ───────────────────────────────────────────── */
+
+  /* Tabulate a 1-D density over [0,1] and return its normalised CDF, so any
+     hand-authored profile (exponential disc, ringed annulus) can be sampled
+     exactly and cheaply. */
+  function buildCdf(bins, density) {
+    var c = new Float64Array(bins + 1);
+    var acc = 0;
+    for (var i = 0; i < bins; i++) {
+      var d = density((i + 0.5) / bins);
+      acc += d > 0 ? d : 0;
+      c[i + 1] = acc;
+    }
+    if (!(acc > 0)) {
+      for (var j = 0; j <= bins; j++) c[j] = j / bins;
+      return c;
+    }
+    for (var k = 0; k <= bins; k++) c[k] /= acc;
+    c[bins] = 1;
+    return c;
+  }
+
+  /* Inverse transform with linear interpolation inside the hit bin, so the
+     result is continuous rather than quantised to bin edges. */
+  function sampleCdf(c, u) {
+    var bins = c.length - 1;
+    if (!(u >= 0)) u = 0;
+    if (u > 0.999999999) u = 0.999999999;
+    var lo = 0, hi = bins - 1;
+    while (lo < hi) {
+      var mid = (lo + hi) >> 1;
+      if (c[mid + 1] <= u) lo = mid + 1;
+      else hi = mid;
+    }
+    var a = c[lo], b = c[lo + 1];
+    var f = b > a ? (u - a) / (b - a) : 0.5;
+    return (lo + f) / bins;
+  }
+
+  /* ── grid helper ───────────────────────────────────────────────────────── */
+
+  /* A near-square grid holding exactly `n` cells. When cols*rows overshoots we
+     drop the surplus cells with a Bresenham cadence, so the missing cells are
+     sprinkled through the sheet instead of leaving a bitten-off last row. */
+  function visitGrid(n, visit) {
+    var cols = Math.max(1, Math.round(Math.sqrt(n)));
+    var rows = Math.max(1, Math.ceil(n / cols));
+    var total = cols * rows;
+    var emitted = 0;
+    var prev = 0;
+    for (var c = 0; c < total && emitted < n; c++) {
+      var next = Math.floor(((c + 1) * n) / total);
+      if (next > prev) {
+        visit(emitted++, c % cols, Math.floor(c / cols), cols, rows);
+      }
+      prev = next;
+    }
+    /* Defensive: rounding can never leave this short, but never emit garbage. */
+    while (emitted < n) {
+      visit(emitted, emitted % cols, Math.floor(emitted / cols) % rows, cols, rows);
+      emitted++;
+    }
+  }
+
+  /* ── final safety fit ──────────────────────────────────────────────────── */
+
+  /* Shrink (never grow) the cloud so nothing escapes the unit sphere. Generators
+     are tuned to land inside on their own; this is the belt to that braces. */
+  function fit(out, limit) {
+    var n = out.length;
+    var maxSq = 0;
+    for (var i = 0; i < n; i += 3) {
+      var d = out[i] * out[i] + out[i + 1] * out[i + 1] + out[i + 2] * out[i + 2];
+      if (d > maxSq) maxSq = d;
+    }
+    var max = Math.sqrt(maxSq);
+    if (max > limit && max > 0) {
+      var s = limit / max;
+      for (var j = 0; j < n; j++) out[j] *= s;
+    }
+    return out;
+  }
+
+  /* ══ sphere ════════════════════════════════════════════════════════════ */
+
+  /* Fibonacci (golden-angle) lattice: equal-area bands in y, golden-angle steps
+     in longitude. Spacing is as even as a deterministic sphere covering gets —
+     no pole clustering, no seams. opts.shell lets points sink inward, sampled
+     uniformly in volume across the shell so the density stays flat. */
+  function sphere(count, opts) {
+    var out = alloc(count);
+    var n = out.length / 3;
+    if (n === 0) return out;
+
+    var shell = clamp(pick(opts, 'shell', 0), 0, 1);
+    var radius = pick(opts, 'radius', 1);
+    var rng = mulberry32(hashSeed(opts && opts.seed));
+    var q = randomQuat(rng);
+
+    var inner = 1 - shell;
+    var inner3 = inner * inner * inner;
+    var v = [0, 0, 0];
+
+    for (var i = 0; i < n; i++) {
+      var y = 1 - (2 * i + 1) / n;
+      var s = Math.sqrt(Math.max(0, 1 - y * y));
+      var th = GOLDEN_ANGLE * i;
+      var r = radius;
+      if (shell > 0) {
+        /* stratified so the radial spread stays smooth at any count */
+        var u = (i + rng()) / n;
+        r = radius * Math.cbrt(inner3 + (1 - inner3) * u);
+      }
+      rotateByQuat(q, Math.cos(th) * s, y, Math.sin(th) * s, v);
+      var o = i * 3;
+      out[o] = v[0] * r;
+      out[o + 1] = v[1] * r;
+      out[o + 2] = v[2] * r;
+    }
+    return fit(out, FIT_LIMIT);
+  }
+
+  /* ══ galaxy ════════════════════════════════════════════════════════════ */
+
+  /* A grand-design spiral: exponential disc (dense core, sparse rim), arms laid
+     on a logarithmic spiral theta = ln(r/r0)/tan(pitch), angular scatter that
+     widens outward, a disc that thins outward, a flattened central bulge, and a
+     pinch of inter-arm stars so the arms have something to stand out against. */
+  function galaxy(count, opts) {
+    var out = alloc(count);
+    var n = out.length / 3;
+    if (n === 0) return out;
+
+    var arms = Math.max(1, Math.round(pick(opts, 'arms', 3)));
+    var pitch = pick(opts, 'pitch', 0.235);          /* radians; 13.5 deg */
+    var spread = pick(opts, 'spread', 0.155);        /* arm half-width, radians */
+    var bulgeFrac = clamp(pick(opts, 'bulge', 0.17), 0, 1);
+    var bulgeRadius = pick(opts, 'bulgeRadius', 0.2);
+    var thickness = pick(opts, 'thickness', 0.062);
+    var scaleLength = pick(opts, 'scaleLength', 0.28); /* exponential disc h */
+    var interArm = clamp(pick(opts, 'interArm', 0.11), 0, 1);
+    var rMax = pick(opts, 'radius', 0.97);
+    var spin = pick(opts, 'spin', 1) >= 0 ? 1 : -1;
+
+    var rng = mulberry32(hashSeed(opts && opts.seed));
+    var phase = rng() * TAU;
+
+    /* N(r) dr ∝ r * exp(-r/h) dr — a real exponential disc — with the rim
+       feathered off so the galaxy dissolves instead of ending at a wall. */
+    var cdf = buildCdf(1024, function (x) {
+      var r = x * rMax;
+      var edge = 1 - smoothstep(0.78, 1, x) * 0.93;
+      return r * Math.exp(-r / scaleLength) * edge;
+    });
+
+    var rMin = 0.055;                  /* spiral reference radius */
+    var invTan = 1 / Math.tan(pitch);
+    var armStep = TAU / arms;
+
+    var nBulge = Math.round(n * bulgeFrac);
+    var nDisc = n - nBulge;
+    var bAcc = 0, bUsed = 0, dUsed = 0;
+
+    for (var i = 0; i < n; i++) {
+      var o = i * 3;
+      var x, y, z;
+      bAcc += bulgeFrac;
+      if (bAcc >= 1 && bUsed < nBulge) {
+        /* ── bulge: flattened, steeply concentrated spheroid ── */
+        bAcc -= 1;
+        var ub = (bUsed + rng()) / Math.max(1, nBulge);
+        var rb = bulgeRadius * Math.pow(ub, 1.55);
+        var cz = rng() * 2 - 1;
+        var sa = Math.sqrt(Math.max(0, 1 - cz * cz));
+        var ang = rng() * TAU;
+        x = rb * sa * Math.cos(ang);
+        z = rb * sa * Math.sin(ang);
+        y = rb * cz * 0.6;
+        bUsed++;
+      } else {
+        /* ── disc: logarithmic spiral arms ── */
+        var ud = (dUsed + rng()) / Math.max(1, nDisc);
+        var r = sampleCdf(cdf, ud) * rMax;
+        dUsed++;
+
+        var wind = Math.log(Math.max(r, rMin) / rMin) * invTan * spin;
+        var th;
+        if (rng() < interArm) {
+          th = rng() * TAU;                       /* field star */
+        } else {
+          var arm = i % arms;
+          var sigma = spread * (0.45 + 0.8 * (r / rMax));
+          th = arm * armStep + wind + gaussClamped(rng, 2.6) * sigma;
+        }
+        th += phase;
+
+        /* disc scale height falls off outward: thin, flaring core */
+        var hz = thickness * Math.exp(-r / 0.42);
+        x = r * Math.cos(th);
+        z = r * Math.sin(th);
+        y = gaussClamped(rng, 2.6) * hz;
+      }
+      out[o] = x;
+      out[o + 1] = y;
+      out[o + 2] = z;
+    }
+    return fit(out, FIT_LIMIT);
+  }
+
+  /* ══ torus knot ════════════════════════════════════════════════════════ */
+
+  /* Points on the tube around a (p,q) torus knot. The curve is tabulated once,
+     re-parameterised by arc length (raw t bunches badly where the curve bends),
+     and carried by a rotation-minimising frame whose closing twist is undone so
+     the tube has no seam. */
+  function torusKnot(count, opts) {
+    var out = alloc(count);
+    var n = out.length / 3;
+    if (n === 0) return out;
+
+    var p = Math.max(1, Math.round(pick(opts, 'p', 2)));
+    var q = Math.max(1, Math.round(pick(opts, 'q', 3)));
+    var tube = Math.max(0, pick(opts, 'tube', 0.12));
+    var fill = clamp(pick(opts, 'fill', 0.3), 0, 1); /* radial thickness of the shell */
+    var rng = mulberry32(hashSeed(opts && opts.seed));
+
+    var SAMPLES = 2048;
+    var px = new Float64Array(SAMPLES + 1);
+    var py = new Float64Array(SAMPLES + 1);
+    var pz = new Float64Array(SAMPLES + 1);
+    var tx = new Float64Array(SAMPLES + 1);
+    var ty = new Float64Array(SAMPLES + 1);
+    var tz = new Float64Array(SAMPLES + 1);
+    var nx = new Float64Array(SAMPLES + 1);
+    var ny = new Float64Array(SAMPLES + 1);
+    var nz = new Float64Array(SAMPLES + 1);
+    var arc = new Float64Array(SAMPLES + 1);
+
+    var i, t, rr, maxR = 0;
+    for (i = 0; i <= SAMPLES; i++) {
+      t = (i / SAMPLES) * TAU;
+      rr = Math.cos(q * t) + 2;
+      px[i] = rr * Math.cos(p * t);
+      py[i] = rr * Math.sin(p * t);
+      pz[i] = -Math.sin(q * t);
+      /* analytic tangent keeps the frame clean at the seam */
+      var dr = -q * Math.sin(q * t);
+      var dx = dr * Math.cos(p * t) - rr * p * Math.sin(p * t);
+      var dy = dr * Math.sin(p * t) + rr * p * Math.cos(p * t);
+      var dz = -q * Math.cos(q * t);
+      var dl = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+      tx[i] = dx / dl; ty[i] = dy / dl; tz[i] = dz / dl;
+      var rad = Math.sqrt(px[i] * px[i] + py[i] * py[i] + pz[i] * pz[i]);
+      if (rad > maxR) maxR = rad;
+    }
+    for (i = 1; i <= SAMPLES; i++) {
+      var ax = px[i] - px[i - 1], ay = py[i] - py[i - 1], az = pz[i] - pz[i - 1];
+      arc[i] = arc[i - 1] + Math.sqrt(ax * ax + ay * ay + az * az);
+    }
+    var length = arc[SAMPLES];
+
+    /* parallel transport: start with any normal, rotate it by the minimal
+       rotation that carries each tangent to the next */
+    var seedVec = Math.abs(tz[0]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+    var n0x = ty[0] * seedVec[2] - tz[0] * seedVec[1];
+    var n0y = tz[0] * seedVec[0] - tx[0] * seedVec[2];
+    var n0z = tx[0] * seedVec[1] - ty[0] * seedVec[0];
+    var n0l = Math.sqrt(n0x * n0x + n0y * n0y + n0z * n0z) || 1;
+    nx[0] = n0x / n0l; ny[0] = n0y / n0l; nz[0] = n0z / n0l;
+    var tmp = [0, 0, 0];
+    for (i = 1; i <= SAMPLES; i++) {
+      var cx = ty[i - 1] * tz[i] - tz[i - 1] * ty[i];
+      var cy = tz[i - 1] * tx[i] - tx[i - 1] * tz[i];
+      var cz = tx[i - 1] * ty[i] - ty[i - 1] * tx[i];
+      var sn = Math.sqrt(cx * cx + cy * cy + cz * cz);
+      if (sn < 1e-12) {
+        nx[i] = nx[i - 1]; ny[i] = ny[i - 1]; nz[i] = nz[i - 1];
+      } else {
+        var cs = tx[i - 1] * tx[i] + ty[i - 1] * ty[i] + tz[i - 1] * tz[i];
+        rotateAxis(nx[i - 1], ny[i - 1], nz[i - 1], cx / sn, cy / sn, cz / sn, Math.atan2(sn, cs), tmp);
+        nx[i] = tmp[0]; ny[i] = tmp[1]; nz[i] = tmp[2];
+      }
+    }
+    /* undo the holonomy accumulated over the loop, spread along arc length */
+    var hx = ny[0] * nz[SAMPLES] - nz[0] * ny[SAMPLES];
+    var hy = nz[0] * nx[SAMPLES] - nx[0] * nz[SAMPLES];
+    var hz2 = nx[0] * ny[SAMPLES] - ny[0] * nx[SAMPLES];
+    var sinH = hx * tx[0] + hy * ty[0] + hz2 * tz[0];
+    var cosH = nx[0] * nx[SAMPLES] + ny[0] * ny[SAMPLES] + nz[0] * nz[SAMPLES];
+    var holo = Math.atan2(sinH, cosH);
+    for (i = 0; i <= SAMPLES; i++) {
+      var k = length > 0 ? arc[i] / length : 0;
+      rotateAxis(nx[i], ny[i], nz[i], tx[i], ty[i], tz[i], -holo * k, tmp);
+      nx[i] = tmp[0]; ny[i] = tmp[1]; nz[i] = tmp[2];
+    }
+
+    /* Exact fit: the widest point of the tube is
+         max_phi |s*P + tube*(cos phi N + sin phi B)|
+               = sqrt(s^2|P|^2 + tube^2 + 2 s tube sqrt((P.N)^2 + (P.B)^2))
+       which is monotonic in s, so a few bisections put the knot's true hull
+       exactly on the target radius whatever p, q and tube are. */
+    var perp = new Float64Array(SAMPLES + 1);
+    var plen = new Float64Array(SAMPLES + 1);
+    for (i = 0; i <= SAMPLES; i++) {
+      var bx0 = ty[i] * nz[i] - tz[i] * ny[i];
+      var by0 = tz[i] * nx[i] - tx[i] * nz[i];
+      var bz0 = tx[i] * ny[i] - ty[i] * nx[i];
+      var dn = px[i] * nx[i] + py[i] * ny[i] + pz[i] * nz[i];
+      var db = px[i] * bx0 + py[i] * by0 + pz[i] * bz0;
+      perp[i] = Math.sqrt(dn * dn + db * db);
+      plen[i] = Math.sqrt(px[i] * px[i] + py[i] * py[i] + pz[i] * pz[i]);
+    }
+    var hull = function (s) {
+      var m = 0;
+      for (var a = 0; a <= SAMPLES; a++) {
+        var v2 = s * s * plen[a] * plen[a] + tube * tube + 2 * s * tube * perp[a];
+        if (v2 > m) m = v2;
+      }
+      return Math.sqrt(m);
+    };
+    var target = pick(opts, 'radius', 0.995);
+    var sLo = 0, sHi = target / Math.max(1e-6, maxR) + 1;
+    for (i = 0; i < 24; i++) {
+      var sm = (sLo + sHi) * 0.5;
+      if (hull(sm) > target) sHi = sm; else sLo = sm;
+    }
+    var scale = (sLo + sHi) * 0.5;
+    var phase = rng() * TAU;
+    var sPhase = rng();
+
+    for (var j = 0; j < n; j++) {
+      /* perfectly even arc-length spacing, offset by a seeded phase */
+      var s = (((j + sPhase) / n) % 1) * length;
+      /* locate s in the arc table */
+      var lo = 0, hi = SAMPLES;
+      while (lo < hi) {
+        var mid = (lo + hi) >> 1;
+        if (arc[mid + 1] <= s) lo = mid + 1;
+        else hi = mid;
+      }
+      var seg = arc[lo + 1] - arc[lo];
+      var f = seg > 1e-15 ? (s - arc[lo]) / seg : 0;
+      var i0 = lo, i1 = lo + 1;
+
+      var cxp = px[i0] + (px[i1] - px[i0]) * f;
+      var cyp = py[i0] + (py[i1] - py[i0]) * f;
+      var czp = pz[i0] + (pz[i1] - pz[i0]) * f;
+      var fnx = nx[i0] + (nx[i1] - nx[i0]) * f;
+      var fny = ny[i0] + (ny[i1] - ny[i0]) * f;
+      var fnz = nz[i0] + (nz[i1] - nz[i0]) * f;
+      var ftx = tx[i0] + (tx[i1] - tx[i0]) * f;
+      var fty = ty[i0] + (ty[i1] - ty[i0]) * f;
+      var ftz = tz[i0] + (tz[i1] - tz[i0]) * f;
+      var tl = Math.sqrt(ftx * ftx + fty * fty + ftz * ftz) || 1;
+      ftx /= tl; fty /= tl; ftz /= tl;
+      /* re-orthogonalise the interpolated normal against the tangent */
+      var dot = fnx * ftx + fny * fty + fnz * ftz;
+      fnx -= ftx * dot; fny -= fty * dot; fnz -= ftz * dot;
+      var nl = Math.sqrt(fnx * fnx + fny * fny + fnz * fnz) || 1;
+      fnx /= nl; fny /= nl; fnz /= nl;
+      var fbx = fty * fnz - ftz * fny;
+      var fby = ftz * fnx - ftx * fnz;
+      var fbz = ftx * fny - fty * fnx;
+
+      /* golden-angle roll: the tube fills evenly without stripes */
+      var phi = GOLDEN_ANGLE * j + phase;
+      var rt = tube > 0 ? tube * Math.sqrt(1 - fill * rng() * (2 - fill)) : 0;
+      var ca = Math.cos(phi) * rt, sa2 = Math.sin(phi) * rt;
+
+      var o = j * 3;
+      out[o] = (cxp + fnx * ca + fbx * sa2) * scale;
+      out[o + 1] = (cyp + fny * ca + fby * sa2) * scale;
+      out[o + 2] = (czp + fnz * ca + fbz * sa2) * scale;
+    }
+    return fit(out, FIT_LIMIT);
+  }
+
+  /* ══ wave ══════════════════════════════════════════════════════════════ */
+
+  /* A near-square sheet on the xz plane lifted by two circular waves from two
+     sources — the two-slit interference figure, which has far more structure
+     than crossed plane waves. Each grid cell gets one stratified sample so the
+     sheet reads as a continuous surface rather than a fly screen. */
+  function wave(count, opts) {
+    var out = alloc(count);
+    var n = out.length / 3;
+    if (n === 0) return out;
+
+    var half = pick(opts, 'extent', 0.7);
+    var amp = pick(opts, 'amplitude', 0.09);
+    var k = pick(opts, 'frequency', 26);
+    var sep = pick(opts, 'separation', 0.5);
+    var decay = pick(opts, 'decay', 1.6);
+    var jitter = clamp(pick(opts, 'jitter', 0.85), 0, 1);
+    var rng = mulberry32(hashSeed(opts && opts.seed));
+
+    var ph1 = rng() * TAU, ph2 = rng() * TAU;
+    var s1x = -sep, s1z = -sep * 0.35;
+    var s2x = sep, s2z = sep * 0.35;
+
+    visitGrid(n, function (idx, col, rowI, cols, rows) {
+      var jx = 0.5 + (rng() - 0.5) * jitter;
+      var jz = 0.5 + (rng() - 0.5) * jitter;
+      var x = ((col + jx) / cols) * 2 * half - half;
+      var z = ((rowI + jz) / rows) * 2 * half - half;
+
+      var d1 = Math.sqrt((x - s1x) * (x - s1x) + (z - s1z) * (z - s1z));
+      var d2 = Math.sqrt((x - s2x) * (x - s2x) + (z - s2z) * (z - s2z));
+      var a1 = 1 / (1 + decay * d1);
+      var a2 = 1 / (1 + decay * d2);
+      var y = amp * (a1 * Math.sin(k * d1 - ph1) + a2 * Math.sin(k * d2 - ph2));
+
+      var o = idx * 3;
+      out[o] = x;
+      out[o + 1] = y;
+      out[o + 2] = z;
+    });
+    return fit(out, FIT_LIMIT);
+  }
+
+  /* ══ ring ══════════════════════════════════════════════════════════════ */
+
+  /* A Saturn annulus: area-correct radial sampling through a hand-authored
+     density profile with two Cassini-style gaps and a stack of finer bands.
+     Angles walk by the golden fraction, which spreads the points like a Vogel
+     spiral — dense, even, and free of the clumps plain random angles give. */
+  function ring(count, opts) {
+    var out = alloc(count);
+    var n = out.length / 3;
+    if (n === 0) return out;
+
+    var inner = pick(opts, 'inner', 0.45);
+    var outer = pick(opts, 'outer', 0.97);
+    var thickness = pick(opts, 'thickness', 0.008);
+    var bandDepth = clamp(pick(opts, 'bands', 0.3), 0, 0.8);
+    var rng = mulberry32(hashSeed(opts && opts.seed));
+
+    /* {centre (0..1 across the annulus), width, depth} */
+    var gaps = opts && opts.gaps ? opts.gaps : [
+      { at: 0.6, width: 0.045, depth: 0.97 },   /* Cassini division */
+      { at: 0.89, width: 0.014, depth: 0.85 }   /* Encke gap */
+    ];
+
+    var span = outer - inner;
+    var cdf = buildCdf(2048, function (x) {
+      var r = inner + x * span;
+      var d = r;                                   /* area weighting */
+      d *= 1 + bandDepth * Math.sin(TAU * 6.3 * x + 0.7)
+             + bandDepth * 0.55 * Math.sin(TAU * 13.9 * x + 2.1);
+      for (var g = 0; g < gaps.length; g++) {
+        var t = (x - gaps[g].at) / gaps[g].width;
+        d *= 1 - gaps[g].depth * Math.exp(-t * t);
+      }
+      d *= smoothstep(0, 0.02, x) * (1 - smoothstep(0.97, 1, x) * 0.9);
+      return d;
+    });
+
+    var phase = rng();
+    for (var i = 0; i < n; i++) {
+      var u = (i + rng()) / n;
+      var r = inner + sampleCdf(cdf, u) * span;
+      var th = TAU * ((i * GOLDEN_FRACT + phase) % 1);
+      var o = i * 3;
+      out[o] = r * Math.cos(th);
+      out[o + 1] = gaussClamped(rng, 2.5) * thickness;
+      out[o + 2] = r * Math.sin(th);
+    }
+    return fit(out, FIT_LIMIT);
+  }
+
+  /* ══ cube ══════════════════════════════════════════════════════════════ */
+
+  /* Six faces, equal area so equal share of the points, stratified inside each
+     face. Half-size 0.575 puts the corners at radius 0.996 — as large as a cube
+     can be inside the unit sphere. */
+  function cube(count, opts) {
+    var out = alloc(count);
+    var n = out.length / 3;
+    if (n === 0) return out;
+
+    var half = pick(opts, 'size', 0.575);
+    var jitter = clamp(pick(opts, 'jitter', 0.9), 0, 1);
+    var rng = mulberry32(hashSeed(opts && opts.seed));
+
+    var base = Math.floor(n / 6), extra = n % 6;
+    /* which faces get the leftover points rotates with the seed */
+    var offset = Math.floor(rng() * 6);
+    var cursor = 0;
+    for (var f = 0; f < 6; f++) {
+      var face = (f + offset) % 6;
+      var cnt = base + (f < extra ? 1 : 0);
+      if (cnt === 0) continue;
+      var axis = face >> 1;
+      var sign = (face & 1) ? 1 : -1;
+      var a0 = (axis + 1) % 3, a1 = (axis + 2) % 3;
+      var start = cursor;
+      visitGrid(cnt, function (idx, col, rowI, cols, rows) {
+        var ju = 0.5 + (rng() - 0.5) * jitter;
+        var jv = 0.5 + (rng() - 0.5) * jitter;
+        var u = ((col + ju) / cols) * 2 - 1;
+        var v = ((rowI + jv) / rows) * 2 - 1;
+        var o = (start + idx) * 3;
+        out[o + axis] = sign * half;
+        out[o + a0] = u * half;
+        out[o + a1] = v * half;
+      });
+      cursor += cnt;
+    }
+    return fit(out, FIT_LIMIT);
+  }
+
+  /* ══ heart ═════════════════════════════════════════════════════════════ */
+
+  /* Taubin's heart: (x^2 + 9/4 y^2 + z^2 - 1)^3 - x^2 z^3 - 9/80 y^2 z^3 = 0.
+   *
+   * Along a ray p = t*d the implicit collapses to a two-coefficient polynomial
+   *     F(t) = (A t^2 - 1)^3 - B t^5,  A = dx^2 + 9/4 dy^2 + dz^2,
+   *                                    B = (dx^2 + 9/80 dy^2) dz^3
+   * so the surface radius in any direction costs a handful of multiplies. The
+   * surface is star-shaped about the origin, so one root per direction is all
+   * there is.
+   *
+   * Even directions do NOT give even points — a star-shaped surface stretches
+   * solid angle by r^2 / cos(angle between the ray and the normal). So we weigh
+   * a Fibonacci lattice of directions by exactly that factor, resample it, and
+   * jitter each survivor inside its own lattice cell.
+   *
+   * Equation space has z up and y as the thin axis; the output is rotated -90
+   * degrees about x, giving lobes up (+y), the tip down, and the heart facing a
+   * viewer who looks down -z.
+   */
+  var HEART_TMAX = 3;
+
+  function heartRoot(dx, dy, dz) {
+    var A = dx * dx + 2.25 * dy * dy + dz * dz;
+    var B = (dx * dx + 0.1125 * dy * dy) * dz * dz * dz;
+    var STEPS = 40;
+    var prevT = 0, prevF = -1;         /* F(0) = -1 */
+    var loT = -1, hiT = -1;
+    for (var i = 1; i <= STEPS; i++) {
+      var t = (i / STEPS) * HEART_TMAX;
+      var g = A * t * t - 1;
+      var fv = g * g * g - B * t * t * t * t * t;
+      if ((fv >= 0) !== (prevF >= 0)) { loT = prevT; hiT = t; }
+      prevT = t; prevF = fv;
+    }
+    if (hiT < 0) return 0;
+    for (var k = 0; k < 26; k++) {
+      var m = (loT + hiT) * 0.5;
+      var gm = A * m * m - 1;
+      var fm = gm * gm * gm - B * m * m * m * m * m;
+      if (fm >= 0) hiT = m; else loT = m;
+    }
+    return (loT + hiT) * 0.5;
+  }
+
+  /* Gradient of the implicit at an equation-space point (used for the area
+     weight). Returned through `o` as [gx, gy, gz]. */
+  function heartGrad(x, y, z, o) {
+    var g = x * x + 2.25 * y * y + z * z - 1;
+    var g2 = 3 * g * g;
+    var z3 = z * z * z, z2 = z * z;
+    o[0] = g2 * 2 * x - 2 * x * z3;
+    o[1] = g2 * 4.5 * y - 0.225 * y * z3;
+    o[2] = g2 * 2 * z - 3 * z2 * (x * x + 0.1125 * y * y);
+  }
+
+  /* One fixed scan at load time fixes the scale for every count and seed, so a
+     10-point heart and a million-point heart are exactly the same size. */
+  var HEART_RAW_MAX = (function () {
+    var N = 4096, m = 0;
+    for (var i = 0; i < N; i++) {
+      var y = 1 - (2 * i + 1) / N;
+      var s = Math.sqrt(Math.max(0, 1 - y * y));
+      var th = GOLDEN_ANGLE * i;
+      var r = heartRoot(Math.cos(th) * s, y, Math.sin(th) * s);
+      if (r > m) m = r;
+    }
+    return m;
+  })();
+  var HEART_SCALE = 0.97 / HEART_RAW_MAX;
+
+  function heart(count, opts) {
+    var out = alloc(count);
+    var n = out.length / 3;
+    if (n === 0) return out;
+
+    var scale = pick(opts, 'scale', HEART_SCALE);
+    var even = flag(opts, 'even', true);
+    var rng = mulberry32(hashSeed(opts && opts.seed));
+    var q = randomQuat(rng);
+    var spinOnly = flag(opts, 'randomRotation', false);
+    var lat = rng() * TAU;              /* lattice phase so seeds differ */
+
+    var dirs = new Float64Array(n * 3);
+    var rad = new Float64Array(n);
+    var wsum = 0;
+    var weights = even ? new Float64Array(n) : null;
+    var grad = [0, 0, 0];
+
+    for (var i = 0; i < n; i++) {
+      var y = 1 - (2 * i + 1) / n;
+      var s = Math.sqrt(Math.max(0, 1 - y * y));
+      var th = GOLDEN_ANGLE * i + lat;
+      var dx = Math.cos(th) * s, dy = y, dz = Math.sin(th) * s;
+      dirs[i * 3] = dx; dirs[i * 3 + 1] = dy; dirs[i * 3 + 2] = dz;
+      var r = heartRoot(dx, dy, dz);
+      rad[i] = r;
+      if (even) {
+        heartGrad(r * dx, r * dy, r * dz, grad);
+        var gl = Math.sqrt(grad[0] * grad[0] + grad[1] * grad[1] + grad[2] * grad[2]);
+        var cosA = gl > 1e-12 ? Math.abs((grad[0] * dx + grad[1] * dy + grad[2] * dz) / gl) : 1;
+        var w = (r * r) / Math.max(cosA, 0.12);
+        weights[i] = w;
+        wsum += w;
+      }
+    }
+
+    /* angular radius of one lattice cell: 2pi(1 - cos a) = 4pi/n */
+    var cell = n > 1 ? Math.acos(clamp(1 - 2 / n, -1, 1)) : Math.PI;
+    var v = [0, 0, 0];
+    var tmpv = [0, 0, 0];
+
+    /* Systematic (low-variance) resampling proportional to surface area. The
+       picks come out sorted, so a run of equal picks is exactly a cell that has
+       to carry several points. */
+    var picks = new Int32Array(n);
+    if (even) {
+      var step = wsum / n;
+      var walk = rng() * step;
+      var src = 0, acc = weights[0];
+      for (var a = 0; a < n; a++) {
+        var target = walk + a * step;
+        while (acc < target && src < n - 1) { src++; acc += weights[src]; }
+        picks[a] = src;
+      }
+    } else {
+      for (var b = 0; b < n; b++) picks[b] = b;
+    }
+
+    for (var j = 0; j < n;) {
+      var idx = picks[j];
+      var k = 1;
+      while (j + k < n && picks[j + k] === idx) k++;
+
+      var bx = dirs[idx * 3], by = dirs[idx * 3 + 1], bz = dirs[idx * 3 + 2];
+      /* a perpendicular to tilt away from */
+      var ux = Math.abs(bz) < 0.9 ? 0 : 1, uy = 0, uz = Math.abs(bz) < 0.9 ? 1 : 0;
+      var ax = by * uz - bz * uy, ay = bz * ux - bx * uz, az = bx * uy - by * ux;
+      var al = Math.sqrt(ax * ax + ay * ay + az * az) || 1;
+      ax /= al; ay /= al; az /= al;
+      var phase = rng() * TAU;
+
+      for (var m = 0; m < k; m++) {
+        var ex, ey, ez, rr;
+        if (k === 1) {
+          /* the common case: sit exactly on the lattice, radius already solved */
+          ex = bx; ey = by; ez = bz; rr = rad[idx];
+        } else {
+          /* A cell asked to carry k points subdivides into a k-point golden
+             spiral inside itself. Random jitter would let two of them land on
+             top of each other and burn a hot spot into the render. */
+          /* 0.85 of the cell radius: tuned so the sub-points sit as far apart as
+             their neighbours in the untouched cells around them */
+          var tilt = cell * 0.85 * Math.sqrt((m + 0.5) / k);
+          rotateAxis(bx, by, bz, ax, ay, az, tilt, tmpv);
+          rotateAxis(tmpv[0], tmpv[1], tmpv[2], bx, by, bz, GOLDEN_ANGLE * m + phase, v);
+          var vl = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) || 1;
+          ex = v[0] / vl; ey = v[1] / vl; ez = v[2] / vl;
+          rr = heartRoot(ex, ey, ez);
+        }
+
+        /* equation space (z up, y thin) -> world (y up, z toward the viewer) */
+        var wx = rr * ex, wy = rr * ez, wz = -rr * ey;
+        if (spinOnly) {
+          rotateByQuat(q, wx, wy, wz, v);
+          wx = v[0]; wy = v[1]; wz = v[2];
+        }
+        var o = (j + m) * 3;
+        out[o] = wx * scale;
+        out[o + 1] = wy * scale;
+        out[o + 2] = wz * scale;
+      }
+      j += k;
+    }
+    return fit(out, 1.1);
+  }
+
+  /* ══ helix ═════════════════════════════════════════════════════════════ */
+
+  /* A DNA double helix: two strands around the y axis, offset by 133 degrees so
+     the major and minor grooves read correctly, plus base-pair rungs bridging
+     them. Strand points are evenly spaced in t (a helix has constant speed, so
+     that is already even arc length) and given a soft tube thickness. */
+  function helix(count, opts) {
+    var out = alloc(count);
+    var n = out.length / 3;
+    if (n === 0) return out;
+
+    var turns = pick(opts, 'turns', 3.5);
+    var radius = pick(opts, 'radius', 0.33);
+    var height = pick(opts, 'height', 1.78);
+    var strandPhase = pick(opts, 'strandPhase', 2.32);
+    var rungRatio = clamp(pick(opts, 'rungRatio', 0.3), 0, 0.9);
+    var rungsPerTurn = pick(opts, 'rungsPerTurn', 9);
+    var strandTube = pick(opts, 'strandTube', 0.022);
+    var rungTube = pick(opts, 'rungTube', 0.013);
+    var rng = mulberry32(hashSeed(opts && opts.seed));
+    var phase = rng() * TAU;
+
+    var nRung = Math.round(n * rungRatio);
+    var nStrand = n - nRung;
+    var perStrand = [Math.ceil(nStrand / 2), Math.floor(nStrand / 2)];
+    var used = [0, 0];
+    var rungs = Math.max(1, Math.round(turns * rungsPerTurn));
+    var T = turns * TAU;
+    var off = [0, 0, 0];
+
+    var rAcc = 0, rUsed = 0;
+    for (var i = 0; i < n; i++) {
+      var o = i * 3;
+      var x, y, z, u, t, ang;
+      rAcc += rungRatio;
+      if (rAcc >= 1 && rUsed < nRung) {
+        /* ── rung: a bar between the two strands ── */
+        rAcc -= 1;
+        var ri = rUsed % rungs;
+        u = (ri + 0.5) / rungs;
+        t = u * T;
+        var yc = (u - 0.5) * height;
+        var a0 = t + phase, a1 = t + phase + strandPhase;
+        var x0 = radius * Math.cos(a0), z0 = radius * Math.sin(a0);
+        var x1 = radius * Math.cos(a1), z1 = radius * Math.sin(a1);
+        /* stay off the strands themselves so the rung reads as a bridge */
+        var f = 0.07 + 0.86 * rng();
+        x = x0 + (x1 - x0) * f;
+        z = z0 + (z1 - z0) * f;
+        y = yc;
+        ballOffset(rng, rungTube, off);
+        rUsed++;
+      } else {
+        /* ── strand ── */
+        var strand = used[0] <= used[1] ? 0 : 1;
+        if (perStrand[strand] === 0) strand = 1 - strand;
+        var k = used[strand]++;
+        u = (k + 0.5) / Math.max(1, perStrand[strand]);
+        t = u * T;
+        ang = t + phase + (strand ? strandPhase : 0);
+        x = radius * Math.cos(ang);
+        z = radius * Math.sin(ang);
+        y = (u - 0.5) * height;
+        ballOffset(rng, strandTube, off);
+      }
+      out[o] = x + off[0];
+      out[o + 1] = y + off[1];
+      out[o + 2] = z + off[2];
+    }
+    return fit(out, FIT_LIMIT);
+  }
+
+  /* ── registry ──────────────────────────────────────────────────────────── */
+
+  var ORDER = ['sphere', 'galaxy', 'torusKnot', 'wave', 'ring', 'cube', 'heart', 'helix'];
+
+  var LABELS = {
+    sphere: '球',            /* 球 */
+    galaxy: '銀河',      /* 銀河 */
+    torusKnot: '結び目', /* 結び目 */
+    wave: '波',              /* 波 */
+    ring: '環',              /* 環 */
+    cube: '立方体',  /* 立方体 */
+    heart: 'ハート', /* ハート */
+    helix: '螺旋'        /* 螺旋 */
+  };
+
+  function list() {
+    return ORDER.slice();
+  }
+
+  root.HotaruShapes = {
+    sphere: sphere,
+    galaxy: galaxy,
+    torusKnot: torusKnot,
+    wave: wave,
+    ring: ring,
+    cube: cube,
+    heart: heart,
+    helix: helix,
+    list: list,
+    labels: LABELS,
+    /* exported so callers (and the tests) can map world coordinates back into
+       the heart's equation space: eq = (wx/S, -wz/S, wy/S) */
+    HEART_SCALE: HEART_SCALE
+  };
+})(globalThis);
+
+/* ─── hotaru/mask.js ────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Hotaru · mask.js — glyph raster  ➜  even point cloud
+   ─────────────────────────────────────────────────────────────────────────────
+
+   The page rasterises typed text (Latin, kana, kanji, emoji) onto a 2D canvas
+   and hands us the alpha channel. This module turns that byte field into
+   particle targets that read as a clean, soft-edged letterform rather than as
+   a clumpy spray or a screen door.
+
+   HOW IT SAMPLES
+   --------------
+   1. Every pixel with alpha >= threshold becomes a "lit" pixel carrying the
+      weight alpha/255. Antialiased edge pixels therefore receive proportionally
+      fewer points than solid interior pixels, so the edge fades instead of
+      ending in a hard staircase.
+
+   2. A cumulative weight table is built over the lit pixels. Points are drawn
+      from it by *systematic* (stratified) sampling: sample k consumes the
+      stratum [(k+d)/N] of the total weight, d being one seeded offset in [0,1).
+      This is the low-discrepancy limit of CDF sampling — pixel i receives
+      exactly floor or ceil of count*w_i/W points, never a Poisson clump and
+      never a bald patch. The table is walked with a monotone cursor, so the
+      whole draw is O(count + litPixels) with no binary search.
+
+   3. Within the chosen pixel the offset comes from the R2 low-discrepancy
+      sequence (the 2D plastic-constant lattice), advanced once per sample.
+      Consecutive samples fall in the same or neighbouring pixels, and
+      consecutive R2 points are maximally far apart, so the m points that land
+      in one pixel form an m-point blue-noise-ish set rather than a stack, and
+      neighbouring pixels never share an offset (no moiré against the pixel
+      grid). `jitter` then mixes white noise into that offset *modulo one*,
+      which keeps the distribution exactly uniform over the pixel and keeps
+      every point inside its own pixel: 0 = strictly stratified, 1 = a full
+      pixel of noise, 0.5 = default. The amplitude is divided by sqrt(points
+      in this pixel), so the noise is always the same fraction of the local
+      inter-point distance — enough to look organic rather than machined, never
+      enough to clump. A pixel holding one point still gets the full jitter.
+
+   4. Output order is scrambled by a modular bijection so that any prefix of the
+      returned array is itself a complete, evenly covering point set (the
+      renderer can draw fewer particles, or fade them in by index, without the
+      image appearing as a top-to-bottom wipe).
+
+   COORDINATES
+   -----------
+   The full w x h mask maps to a box centred on the origin whose width:height
+   ratio is `aspect` (default w/h) and which fits inside [-fit, fit] on its
+   longer axis. y points UP, so row 0 of the image is at the top. z is a small
+   seeded value in [-depth, depth] to give the field a little thickness.
+
+   DEGENERATE INPUT — never throws
+   -------------------------------
+     count <= 0 ................. Float32Array(0)
+     w <= 0, h <= 0, no alpha,
+       alpha shorter than w*h,
+       all-zero / all-below-
+       threshold mask ........... Float32Array(count*3) of zeros, i.e. every
+                                  point sits at the origin
+     count === 1 ................ one point, inside the lit region
+     one lit pixel, huge count .. all points spread evenly inside that pixel
+
+   Plain script. Publishes the single global HotaruMask. No DOM, no Math.random.
+   ───────────────────────────────────────────────────────────────────────── */
+
+(function (root) {
+  "use strict";
+
+  /* ── seeded PRNG ────────────────────────────────────────────────────────── */
+
+  /* mulberry32 — 32 bits of state, one multiply-xorshift round, uniform [0,1). */
+  function mulberry32(a) {
+    a = a >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      var t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* Accepts any seed — number, string, undefined — and returns a uint32. */
+  function hashSeed(seed) {
+    if (seed === undefined || seed === null) return 0x9e3779b9;
+    if (typeof seed === "number" && isFinite(seed)) {
+      var x = Math.floor(seed) >>> 0;
+      x ^= 0x9e3779b9;
+      x = Math.imul(x ^ (x >>> 16), 0x85ebca6b) >>> 0;
+      x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35) >>> 0;
+      return (x ^ (x >>> 16)) >>> 0;
+    }
+    var s = String(seed);
+    var hsh = 0x811c9dc5;
+    for (var i = 0; i < s.length; i++) {
+      hsh ^= s.charCodeAt(i);
+      hsh = Math.imul(hsh, 0x01000193) >>> 0;
+    }
+    return hsh >>> 0;
+  }
+
+  /* ── small helpers ──────────────────────────────────────────────────────── */
+
+  function num(v, dflt) {
+    return typeof v === "number" && isFinite(v) ? v : dflt;
+  }
+
+  function isByteArray(a) {
+    return !!a && typeof a.length === "number" && typeof a[0] !== "object";
+  }
+
+  function gcd(a, b) {
+    while (b) {
+      var t = a % b;
+      a = b;
+      b = t;
+    }
+    return a;
+  }
+
+  /* An odd-ish stride coprime to n, near n*phi, used as a cheap bijection on
+     [0,n) so that output index and spatial position are decorrelated. */
+  function coprimeStride(n) {
+    if (n < 3) return 1;
+    var a = Math.floor(n * 0.6180339887498949) | 0;
+    if (a < 2) a = 2;
+    for (var i = 0; i < 64; i++) {
+      var c = a + i;
+      if (c >= n) c = ((a - i) % n + n) % n;
+      if (c > 1 && gcd(c, n) === 1) return c;
+    }
+    return 1;
+  }
+
+  /* R2 sequence — the 2D generalisation of the golden ratio. Successive points
+     are about as far apart as a 2D sequence can make them. */
+  var R2_A1 = 0.7548776662466927; /* 1/g   */
+  var R2_A2 = 0.5698402909980532; /* 1/g^2 */
+
+  /* ── coverage ───────────────────────────────────────────────────────────── */
+
+  /**
+   * Measure a mask before sampling it.
+   *
+   * @param  {Uint8Array|Uint8ClampedArray} alpha  w*h bytes, one per pixel
+   * @param  {number} w
+   * @param  {number} h
+   * @param  {number} [threshold=16]  pixels below this alpha are ignored;
+   *                                  clamped to [1,256], so 256 or more means
+   *                                  "nothing is lit"
+   * @return {{litPixels:number, weight:number,
+   *           bbox:{x0:number,y0:number,x1:number,y1:number,
+   *                 width:number,height:number}}}
+   *         `weight` is the sum of alpha/255 over lit pixels (the "ink area").
+   *         `bbox` is in pixel coordinates, x0/y0 inclusive and x1/y1 exclusive,
+   *         so width = x1-x0. An empty mask reports every field as 0.
+   */
+  function coverage(alpha, w, h, threshold) {
+    var empty = {
+      litPixels: 0,
+      weight: 0,
+      bbox: { x0: 0, y0: 0, x1: 0, y1: 0, width: 0, height: 0 }
+    };
+    w = Math.floor(num(w, 0));
+    h = Math.floor(num(h, 0));
+    if (w <= 0 || h <= 0 || !isByteArray(alpha) || alpha.length < w * h) return empty;
+
+    var thr = Math.floor(num(threshold, 16));
+    if (thr < 1) thr = 1;
+    if (thr > 256) thr = 256; /* 256 and up: nothing is lit */
+
+    var lit = 0,
+      weight = 0,
+      x0 = w,
+      y0 = h,
+      x1 = -1,
+      y1 = -1;
+
+    for (var y = 0; y < h; y++) {
+      var row = y * w,
+        rowHit = false;
+      for (var x = 0; x < w; x++) {
+        var a = alpha[row + x];
+        if (a >= thr) {
+          lit++;
+          weight += a;
+          rowHit = true;
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+        }
+      }
+      if (rowHit) {
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+
+    if (lit === 0) return empty;
+    return {
+      litPixels: lit,
+      weight: weight / 255,
+      bbox: {
+        x0: x0,
+        y0: y0,
+        x1: x1 + 1,
+        y1: y1 + 1,
+        width: x1 + 1 - x0,
+        height: y1 + 1 - y0
+      }
+    };
+  }
+
+  /* ── sampleMask ─────────────────────────────────────────────────────────── */
+
+  /**
+   * Turn a rasterised glyph mask into `count` particle targets.
+   *
+   * @param  {Uint8Array|Uint8ClampedArray} alpha  w*h bytes, one per pixel
+   * @param  {number} w
+   * @param  {number} h
+   * @param  {number} count   number of points to produce (may far exceed or
+   *                          fall far short of the number of lit pixels)
+   * @param  {object} [opts]
+   * @param  {number|string} [opts.seed]     any number or string; hashed to a
+   *                                         uint32. Same seed, same field.
+   * @param  {number} [opts.threshold=16]    alpha cut-off for "lit", clamped to
+   *                                         [1,256]; 256 means nothing is lit
+   * @param  {number} [opts.fit=1.0]         half-extent of the longer axis
+   * @param  {number} [opts.aspect=w/h]      width:height of the mask in world units
+   * @param  {number} [opts.jitter=0.5]      white noise mixed into the sub-pixel
+   *                                         offset, scaled by the local point
+   *                                         spacing; 0 strictly stratified,
+   *                                         1 a full pixel of noise
+   * @param  {number} [opts.depth=0.02]      z is seeded uniform in [-depth, depth]
+   * @return {Float32Array} length count*3, laid out x,y,z,x,y,z,…
+   */
+  function sampleMask(alpha, w, h, count, opts) {
+    opts = opts || {};
+
+    count = Math.floor(num(count, 0));
+    if (!(count > 0)) return new Float32Array(0);
+
+    var out = new Float32Array(count * 3); /* zero-filled: the origin fallback */
+
+    w = Math.floor(num(w, 0));
+    h = Math.floor(num(h, 0));
+    if (w <= 0 || h <= 0 || !isByteArray(alpha) || alpha.length < w * h) return out;
+
+    var thr = Math.floor(num(opts.threshold, 16));
+    if (thr < 1) thr = 1;
+    if (thr > 256) thr = 256; /* 256 and up: nothing is lit */
+
+    var fit = Math.abs(num(opts.fit, 1));
+    var aspect = num(opts.aspect, w / h);
+    if (!(aspect > 0)) aspect = w / h;
+    var jitter = num(opts.jitter, 0.5);
+    if (jitter < 0) jitter = 0;
+    if (jitter > 1) jitter = 1;
+    var depth = Math.abs(num(opts.depth, 0.02));
+
+    /* ---- pass 1: how many pixels are lit? --------------------------------- */
+    var n = w * h,
+      lit = 0,
+      i;
+    for (i = 0; i < n; i++) if (alpha[i] >= thr) lit++;
+    if (lit === 0) return out; /* nothing to draw: everything stays at origin */
+
+    /* ---- world-space box -------------------------------------------------- */
+    var halfW, halfH;
+    if (aspect >= 1) {
+      halfW = fit;
+      halfH = fit / aspect;
+    } else {
+      halfW = fit * aspect;
+      halfH = fit;
+    }
+    /* one pixel step in world units */
+    var sx = (2 * halfW) / w;
+    var sy = (2 * halfH) / h;
+
+    /* ---- pass 2: cumulative weights + precomputed pixel corners ----------- */
+    /* bx/by hold the world position of each lit pixel's top-left corner, so the
+       inner loop is a single multiply-add per axis. */
+    var cum = new Float64Array(lit);
+    var bx = new Float32Array(lit);
+    var by = new Float32Array(lit);
+    var acc = 0,
+      j = 0;
+    for (var y = 0; y < h; y++) {
+      var row = y * w;
+      var wy = halfH - y * sy; /* y UP: image row 0 sits at the top */
+      for (var x = 0; x < w; x++) {
+        var a = alpha[row + x];
+        if (a >= thr) {
+          acc += a;
+          cum[j] = acc;
+          bx[j] = -halfW + x * sx;
+          by[j] = wy;
+          j++;
+        }
+      }
+    }
+    var total = acc;
+
+    /* ---- sampling --------------------------------------------------------- */
+    var rnd = mulberry32(hashSeed(opts.seed));
+    var delta = rnd(); /* the one random offset of the systematic scan */
+
+    /* decorrelate R2 phase from the seed too */
+    var r2x = rnd(),
+      r2y = rnd();
+
+    var step = total / count;
+    var stride = coprimeStride(count);
+    var dst = (Math.floor(rnd() * count) % count) | 0; /* scrambled write cursor */
+
+    var cursor = 0;
+    var last = lit - 1;
+    var jz = depth * 2;
+
+    /* Jitter amplitude tracks the LOCAL point spacing rather than the pixel.
+       A pixel that receives m points has an inter-point spacing of about
+       1/sqrt(m) of a pixel, so the perturbation is scaled to that: it always
+       breaks up lattice regularity by the same fraction of the neighbour
+       distance, and never grows large enough to undo the even coverage.
+       Recomputed only when the cursor steps to a new pixel. */
+    var seen = -1;
+    var amp = jitter;
+
+    for (var k = 0; k < count; k++) {
+      /* systematic walk of the cumulative table */
+      var target = (k + delta) * step;
+      while (cursor < last && cum[cursor] < target) cursor++;
+
+      if (cursor !== seen) {
+        seen = cursor;
+        var wi = cursor > 0 ? cum[cursor] - cum[cursor - 1] : cum[0];
+        var m = wi / step; /* points this pixel will receive */
+        amp = m > 1 ? jitter / Math.sqrt(m) : jitter;
+      }
+
+      /* R2 sub-pixel offset, then jittered modulo one so it stays in-pixel */
+      r2x += R2_A1;
+      if (r2x >= 1) r2x -= 1;
+      r2y += R2_A2;
+      if (r2y >= 1) r2y -= 1;
+
+      var u = r2x + amp * (rnd() - 0.5);
+      if (u >= 1) u -= 1;
+      else if (u < 0) u += 1;
+      var v = r2y + amp * (rnd() - 0.5);
+      if (v >= 1) v -= 1;
+      else if (v < 0) v += 1;
+
+      var o = dst * 3;
+      out[o] = bx[cursor] + u * sx;
+      out[o + 1] = by[cursor] - v * sy;
+      out[o + 2] = (rnd() - 0.5) * jz;
+
+      dst += stride;
+      if (dst >= count) dst -= count;
+    }
+
+    return out;
+  }
+
+  root.HotaruMask = {
+    sampleMask: sampleMask,
+    coverage: coverage
+  };
+})(globalThis);
+
+/* ─── hotaru/atlas.js ───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Hotaru · atlas.js — an N^3 grid living inside one 2D texture
+   ─────────────────────────────────────────────────────────────────────────────
+
+   The Particle-Mesh gravity solver needs a 3D scalar/vector field: mass density
+   goes in, potential comes out, its gradient goes back to the particles. WebGL2
+   has 3D textures, but it cannot render to a slice of one without either a
+   layered-rendering extension or one draw call per slice, and the Jacobi
+   relaxation wants to write the whole volume in a single full-screen pass. So
+   the volume is stored the way every WebGL PM solver stores it: as an atlas of
+   z-slices tiled across one ordinary 2D texture.
+
+   Every shader in the pipeline — deposit, Jacobi, gradient, gather — addresses
+   the volume through the six functions below. If any two of them disagree by
+   half a texel the whole field acquires a constant drift and the particle cloud
+   slides off in some diagonal direction, which looks exactly like "gravity",
+   only wrong. That is why this module exists twice: once as GLSL for the GPU
+   and once as JavaScript for the CPU, written statement for statement so that
+   test/atlas.test.js can execute both and demand they agree.
+
+   THE TILING
+   ----------
+   N slices of N x N texels are laid out row-major in a tilesX by tilesY grid,
+   slice z occupying tile (z mod tilesX, z div tilesX):
+
+        +--------+--------+--------+--------+     tilesX = 4, tilesY = 4, N = 16
+        |  z=12  |  z=13  |  z=14  |  z=15  |     texture 64 x 64
+        +--------+--------+--------+--------+
+        |  z=8   |  z=9   |  z=10  |  z=11  |     tile (tx,ty) starts at texel
+        +--------+--------+--------+--------+     (tx*N, ty*N); v grows upward,
+        |  z=4   |  z=5   |  z=6   |  z=7   |     matching the order texImage2D
+        +--------+--------+--------+--------+     uploads rows, so row 0 of the
+        |  z=0   |  z=1   |  z=2   |  z=3   |     Float32Array is v = 0.
+        +--------+--------+--------+--------+
+
+   tilesX and tilesY are both powers of two whose product is exactly N. Nothing
+   else was worth considering:
+
+     * exact coverage — tilesX*tilesY == N means width*height == N^3, so every
+       texel of the atlas belongs to exactly one cell. The Jacobi pass can run
+       over the whole framebuffer with no bounds test and no wasted bandwidth,
+       and there is no dead region whose stale contents could leak into a
+       trilinear fetch.
+     * exact arithmetic — a power-of-two N turns every div and mod in the
+       address math into a shift and a mask, which are exact for all int inputs
+       and free on the hardware. A "nicer" near-square tiling like 6 x 6 for
+       N = 32 would be closer to square, but it wastes four tiles, breaks the
+       bijection, and puts an integer division in the innermost loop of the
+       relaxation.
+     * near-square anyway — tilesX = 2^ceil(k/2), tilesY = 2^floor(k/2) for
+       N = 2^k. The atlas is square when k is even and 2:1 when k is odd, which
+       is the squarest a power-of-two factorisation of 2^k can be.
+
+           N     tiles      texture      texels
+           16    4 x 4      64 x 64        4096
+           32    8 x 4     256 x 128      32768
+           64    8 x 8     512 x 512     262144
+          128   16 x 8    2048 x 1024   2097152
+
+     N = 128 is the ceiling: 2048 is the largest width WebGL2 guarantees
+     (MAX_TEXTURE_SIZE >= 2048), and 2 M texels x RGBA32F is already 32 MB per
+     buffer, of which the solver needs several.
+
+   COORDINATES
+   -----------
+   Three systems, and the half-texel lives in the step between the last two:
+
+     world   p in [-L/2, +L/2]^3, the simulation box, origin at its centre.
+     grid    continuous g, with g == i exactly at the CENTRE of cell i. So the
+             box maps to g in [-0.5, N-0.5], the faces sit half a cell outside
+             the outermost cell centres, and sampleGrid at integer g returns
+             that cell's value untouched. The alternative convention (g == i at
+             the cell's lower corner) reads more naturally but makes deposit and
+             gather disagree by half a cell, which is the bug this file is
+             written to prevent.
+     texel   integer (x, y) into the atlas, plus the [0,1]^2 UV of its centre.
+
+   PERIODICITY
+   -----------
+   The grid is a torus. That is not a convenience: Jacobi relaxation of the
+   discrete Poisson equation needs a boundary condition, and periodic is the
+   only one that is both cheap (a mask) and consistent with the FFT solution
+   everybody validates against. Every function here wraps, for every input,
+   however far outside the box — a particle that escapes does not read garbage,
+   it reads the other side.
+
+   WHY sampleGrid CANNOT BE texture()
+   ----------------------------------
+   Hardware bilinear filtering blends the four texels around a UV. Inside one
+   tile that is the right thing for x and y. Between tiles it is nonsense: the
+   texel above the top row of slice z is the bottom row of slice z + tilesX,
+   not slice z at all, and the texel to the right of the last column of slice z
+   is the first column of slice z + 1. So the z blend, and the x/y blends at
+   tile borders, have to be done by hand: eight texelFetch calls with the wrap
+   applied to cell indices, then a nested mix. That is what sampleGrid does, and
+   the test that catches a wrong tiling is the one that samples a field varying
+   only in z and demands a straight line.
+
+   PUBLISHED
+   ---------
+     HotaruAtlas.SIZES                   [16, 32, 64, 128]
+     HotaruAtlas.layout(N)               -> {N, tilesX, tilesY, width, height}
+     HotaruAtlas.constants(layout)       -> every baked number, by name
+     HotaruAtlas.GLSL(layout)            -> GLSL ES 3.00 chunk, constants inlined
+     HotaruAtlas.mirror(layout, opts)    -> the same six functions in JS
+
+   The GLSL is a chunk, not a shader: no #version, no precision qualifier, no
+   main. Paste it after the host shader's own #version line.
+
+   mirror(layout, {fp32: true}) rounds every float operation through
+   Math.fround, reproducing a highp GPU's arithmetic instead of JavaScript's
+   doubles. The tests run both modes.
+   ───────────────────────────────────────────────────────────────────────── */
+(function (root) {
+  "use strict";
+
+  var SIZES = [16, 32, 64, 128];
+
+  /* ── layout ──────────────────────────────────────────────────────────── */
+
+  function isPow2(n) {
+    return n > 0 && (n & (n - 1)) === 0;
+  }
+
+  function log2i(n) {
+    var k = 0;
+    while ((1 << k) < n) k++;
+    return k;
+  }
+
+  function layout(N) {
+    if (typeof N !== 'number' || !isFinite(N) || Math.floor(N) !== N) {
+      throw new TypeError('HotaruAtlas.layout: N must be an integer, got ' + String(N));
+    }
+    if (!isPow2(N)) {
+      throw new RangeError('HotaruAtlas.layout: N must be a power of two, got ' + N);
+    }
+    if (N < 16 || N > 128) {
+      throw new RangeError('HotaruAtlas.layout: N must be one of ' + SIZES.join(', ') + ', got ' + N);
+    }
+    var k = log2i(N);
+    var sx = Math.ceil(k / 2);
+    var sy = k - sx;
+    var tilesX = 1 << sx;
+    var tilesY = 1 << sy;
+    return {
+      N: N,
+      tilesX: tilesX,
+      tilesY: tilesY,
+      width: tilesX * N,
+      height: tilesY * N
+    };
+  }
+
+  /* A layout is re-derived and checked rather than trusted: a hand-built object
+     with a plausible-looking but wrong tilesX would silently desynchronise the
+     GLSL from the JS, which is precisely the failure this module prevents. */
+  function check(lay) {
+    if (!lay || typeof lay !== 'object') {
+      throw new TypeError('HotaruAtlas: expected a layout object from HotaruAtlas.layout()');
+    }
+    var ref = layout(lay.N);
+    var keys = ['N', 'tilesX', 'tilesY', 'width', 'height'];
+    for (var i = 0; i < keys.length; i++) {
+      if (lay[keys[i]] !== ref[keys[i]]) {
+        throw new RangeError('HotaruAtlas: layout.' + keys[i] + ' is ' + lay[keys[i]] +
+          ', expected ' + ref[keys[i]] + ' for N = ' + ref.N);
+      }
+    }
+    return ref;
+  }
+
+  /* Every number the GLSL bakes in, so the tests can compare like for like.
+     All of them are exact in binary32: N, the tile counts and the texture
+     dimensions are powers of two, and so are all four reciprocals. */
+  function constants(lay) {
+    var L = check(lay);
+    return {
+      N: L.N,
+      N_MASK: L.N - 1,
+      N_SHIFT: log2i(L.N),
+      TILES_X: L.tilesX,
+      TILES_Y: L.tilesY,
+      TILES_X_MASK: L.tilesX - 1,
+      TILES_X_SHIFT: log2i(L.tilesX),
+      W: L.width,
+      H: L.height,
+      NF: L.N,
+      INV_N: 1 / L.N,
+      TILES_XF: L.tilesX,
+      INV_TILES_X: 1 / L.tilesX,
+      INV_W: 1 / L.width,
+      INV_H: 1 / L.height
+    };
+  }
+
+  /* ── GLSL ────────────────────────────────────────────────────────────── */
+
+  /* Print a float so that parseFloat returns the identical double. Every
+     constant here is a power of two or its reciprocal, so the plain decimal
+     expansion is exact and short; the fallback keeps the contract for anything
+     that ever stops being one. */
+  function glslFloat(x) {
+    var s = (x === Math.floor(x) && Math.abs(x) < 1e21) ? x.toFixed(1) : String(x);
+    if (parseFloat(s) !== x) s = x.toPrecision(17);
+    if (s.indexOf('.') < 0 && s.indexOf('e') < 0 && s.indexOf('E') < 0) s += '.0';
+    return s;
+  }
+
+  function GLSL(lay) {
+    var C = constants(lay);
+    var d = [];
+
+    d.push('/* ---------------------------------------------------------------------------');
+    d.push('   HotaruAtlas -- ' + C.N + '^3 grid as ' + C.TILES_X + ' x ' + C.TILES_Y +
+      ' z-slice tiles in a ' + C.W + ' x ' + C.H + ' texture.');
+    d.push('   Generated by hotaru/atlas.js; mirrored statement for statement by');
+    d.push('   HotaruAtlas.mirror() and checked against it by test/atlas.test.js.');
+    d.push('   GLSL ES 3.00 chunk: no #version, no precision qualifier, no main.');
+    d.push('   --------------------------------------------------------------------------- */');
+    d.push('');
+    d.push('const int   HA_N             = ' + C.N + ';');
+    d.push('const int   HA_N_MASK        = ' + C.N_MASK + ';');
+    d.push('const int   HA_N_SHIFT       = ' + C.N_SHIFT + ';');
+    d.push('const int   HA_TILES_X       = ' + C.TILES_X + ';');
+    d.push('const int   HA_TILES_Y       = ' + C.TILES_Y + ';');
+    d.push('const int   HA_TILES_X_MASK  = ' + C.TILES_X_MASK + ';');
+    d.push('const int   HA_TILES_X_SHIFT = ' + C.TILES_X_SHIFT + ';');
+    d.push('const int   HA_W             = ' + C.W + ';');
+    d.push('const int   HA_H             = ' + C.H + ';');
+    d.push('const float HA_NF            = ' + glslFloat(C.NF) + ';');
+    d.push('const float HA_INV_N         = ' + glslFloat(C.INV_N) + ';');
+    d.push('const float HA_TILES_XF      = ' + glslFloat(C.TILES_XF) + ';');
+    d.push('const float HA_INV_TILES_X   = ' + glslFloat(C.INV_TILES_X) + ';');
+    d.push('const float HA_INV_W         = ' + glslFloat(C.INV_W) + ';');
+    d.push('const float HA_INV_H         = ' + glslFloat(C.INV_H) + ';');
+    d.push('');
+
+    /* cellToTexel -------------------------------------------------------- */
+    d.push('/* Cell -> the one texel that stores it. Total: the cell index is wrapped');
+    d.push('   into [0,N) on every axis first, so a neighbour offset that walks off the');
+    d.push('   grid lands on the periodic image instead of another slice. */');
+    d.push('ivec2 cellToTexel(ivec3 cell) {');
+    d.push('  int cx = cell.x & HA_N_MASK;');
+    d.push('  int cy = cell.y & HA_N_MASK;');
+    d.push('  int cz = cell.z & HA_N_MASK;');
+    d.push('  int tx = cz & HA_TILES_X_MASK;');
+    d.push('  int ty = cz >> HA_TILES_X_SHIFT;');
+    d.push('  return ivec2(tx * HA_N + cx, ty * HA_N + cy);');
+    d.push('}');
+    d.push('');
+
+    /* texelToCell -------------------------------------------------------- */
+    d.push('/* The inverse, for a pass that iterates over the atlas and has to know which');
+    d.push('   cell it is standing on. Returns floats because every consumer feeds the');
+    d.push('   result straight into the float side of the maths. */');
+    d.push('vec3 texelToCell(ivec2 texel) {');
+    d.push('  int cx = texel.x & HA_N_MASK;');
+    d.push('  int cy = texel.y & HA_N_MASK;');
+    d.push('  int tx = texel.x >> HA_N_SHIFT;');
+    d.push('  int ty = texel.y >> HA_N_SHIFT;');
+    d.push('  int cz = ty * HA_TILES_X + tx;');
+    d.push('  return vec3(float(cx), float(cy), float(cz));');
+    d.push('}');
+    d.push('');
+
+    /* cellToUV ----------------------------------------------------------- */
+    d.push('/* Cell centre in [0,1]^2. cell.z is wrapped and floored to pick the tile;');
+    d.push('   cell.x and cell.y may be fractional, in which case the result is the UV of');
+    d.push('   that point WITHIN the slice -- only meaningful for a texture() lookup that');
+    d.push('   stays inside one tile, which is why the solver uses sampleGrid instead. */');
+    d.push('vec2 cellToUV(vec3 cell) {');
+    d.push('  vec3 c  = cell - HA_NF * floor(cell * HA_INV_N);');
+    d.push('  float z = floor(c.z);');
+    d.push('  float ty = floor(z * HA_INV_TILES_X);');
+    d.push('  float tx = z - HA_TILES_XF * ty;');
+    d.push('  float u = (tx * HA_NF + c.x + 0.5) * HA_INV_W;');
+    d.push('  float v = (ty * HA_NF + c.y + 0.5) * HA_INV_H;');
+    d.push('  return vec2(u, v);');
+    d.push('}');
+    d.push('');
+
+    /* worldToGrid / gridToWorld ------------------------------------------ */
+    d.push('/* World -> continuous grid coordinates, box of side L centred on the origin.');
+    d.push('   p = -L/2 -> -0.5, p = 0 -> N/2 - 0.5, p = +L/2 -> N - 0.5: integer grid');
+    d.push('   coordinates sit at cell CENTRES, so the box faces are half a cell outside');
+    d.push('   the outermost centres and deposit and gather use one convention. */');
+    d.push('vec3 worldToGrid(vec3 p, float L) {');
+    d.push('  return (p / L + 0.5) * HA_NF - 0.5;');
+    d.push('}');
+    d.push('');
+    d.push('/* The exact inverse. */');
+    d.push('vec3 gridToWorld(vec3 g, float L) {');
+    d.push('  return ((g + 0.5) * HA_INV_N - 0.5) * L;');
+    d.push('}');
+    d.push('');
+
+    /* sampleGrid --------------------------------------------------------- */
+    d.push('/* Periodic trilinear sample. Eight texelFetches and a nested mix, because');
+    d.push('   hardware filtering would blend across tile borders, where the neighbour in');
+    d.push('   the texture is a different slice. gridPos is wrapped into [0,N) as a float');
+    d.push('   before flooring, so arbitrarily distant positions cost nothing extra and');
+    d.push('   the integer side never leaves [0,N). At integer gridPos every weight is 0');
+    d.push('   or 1 and the cell value comes back bit-exact. */');
+    d.push('vec4 sampleGrid(sampler2D tex, vec3 gridPos) {');
+    d.push('  vec3 gw = gridPos - HA_NF * floor(gridPos * HA_INV_N);');
+    d.push('  vec3 b  = floor(gw);');
+    d.push('  vec3 f  = gw - b;');
+    d.push('  ivec3 i0 = ivec3(b) & HA_N_MASK;');
+    d.push('  ivec3 i1 = (i0 + 1) & HA_N_MASK;');
+    d.push('  vec4 c000 = texelFetch(tex, cellToTexel(ivec3(i0.x, i0.y, i0.z)), 0);');
+    d.push('  vec4 c100 = texelFetch(tex, cellToTexel(ivec3(i1.x, i0.y, i0.z)), 0);');
+    d.push('  vec4 c010 = texelFetch(tex, cellToTexel(ivec3(i0.x, i1.y, i0.z)), 0);');
+    d.push('  vec4 c110 = texelFetch(tex, cellToTexel(ivec3(i1.x, i1.y, i0.z)), 0);');
+    d.push('  vec4 c001 = texelFetch(tex, cellToTexel(ivec3(i0.x, i0.y, i1.z)), 0);');
+    d.push('  vec4 c101 = texelFetch(tex, cellToTexel(ivec3(i1.x, i0.y, i1.z)), 0);');
+    d.push('  vec4 c011 = texelFetch(tex, cellToTexel(ivec3(i0.x, i1.y, i1.z)), 0);');
+    d.push('  vec4 c111 = texelFetch(tex, cellToTexel(ivec3(i1.x, i1.y, i1.z)), 0);');
+    d.push('  vec4 x00 = mix(c000, c100, f.x);');
+    d.push('  vec4 x10 = mix(c010, c110, f.x);');
+    d.push('  vec4 x01 = mix(c001, c101, f.x);');
+    d.push('  vec4 x11 = mix(c011, c111, f.x);');
+    d.push('  vec4 y0  = mix(x00, x10, f.y);');
+    d.push('  vec4 y1  = mix(x01, x11, f.y);');
+    d.push('  return mix(y0, y1, f.z);');
+    d.push('}');
+    d.push('');
+
+    /* gradGrid ----------------------------------------------------------- */
+    d.push('/* Central-difference gradient of the .x channel, in GRID units: multiply by');
+    d.push('   N/L for a world-space gradient. h is a grid-cell offset, and h = 1.0 is the');
+    d.push('   value to use -- with h = 1 the trilinear interpolation error of a quadratic');
+    d.push('   field is identical at both stencil points and cancels exactly, so the');
+    d.push('   gradient is exact on anything up to second order. Smaller h does not');
+    d.push('   improve it; it divides a fixed interpolation error by a smaller number. */');
+    d.push('vec3 gradGrid(sampler2D tex, vec3 gridPos, float h) {');
+    d.push('  float inv = 0.5 / h;');
+    d.push('  vec3 ex = vec3(h, 0.0, 0.0);');
+    d.push('  vec3 ey = vec3(0.0, h, 0.0);');
+    d.push('  vec3 ez = vec3(0.0, 0.0, h);');
+    d.push('  float xp = sampleGrid(tex, gridPos + ex).x;');
+    d.push('  float xm = sampleGrid(tex, gridPos - ex).x;');
+    d.push('  float yp = sampleGrid(tex, gridPos + ey).x;');
+    d.push('  float ym = sampleGrid(tex, gridPos - ey).x;');
+    d.push('  float zp = sampleGrid(tex, gridPos + ez).x;');
+    d.push('  float zm = sampleGrid(tex, gridPos - ez).x;');
+    d.push('  return vec3(xp - xm, yp - ym, zp - zm) * inv;');
+    d.push('}');
+    d.push('');
+
+    return d.join('\n');
+  }
+
+  /* ── JS mirror ───────────────────────────────────────────────────────── */
+
+  function identity(x) { return x; }
+
+  /* Every statement below is the statement above it in GLSL(), in order, with
+     the same groupings, so that fp32 rounding lands on the same nodes. R is
+     Math.fround in fp32 mode and a no-op otherwise. Int arithmetic is exact in
+     both languages (JS bitwise ops are 32-bit signed, as is GLSL highp int), so
+     it is never rounded. */
+  function mirror(lay, opts) {
+    var C = constants(lay);
+    var fp32 = !!(opts && opts.fp32);
+    var R = fp32 ? Math.fround : identity;
+
+    var N = C.N, N_MASK = C.N_MASK, N_SHIFT = C.N_SHIFT;
+    var TILES_X = C.TILES_X, TILES_X_MASK = C.TILES_X_MASK, TILES_X_SHIFT = C.TILES_X_SHIFT;
+    var W = C.W, H = C.H;
+    var NF = C.NF, INV_N = C.INV_N;
+    var TILES_XF = C.TILES_XF, INV_TILES_X = C.INV_TILES_X;
+    var INV_W = C.INV_W, INV_H = C.INV_H;
+
+    /* Scratch, allocated once. sampleGrid's outputs are consumed before the
+       next call in every path here, so one buffer each is enough. */
+    var sTexel = new Int32Array(2);
+    var sUV = new Float64Array(2);
+    var sCell = new Float64Array(3);
+    var sVec = new Float64Array(3);
+    var sSample = new Float64Array(4);
+    var sGrad = new Float64Array(3);
+    var sFetch = new Float64Array(4);
+    var i0 = new Int32Array(3);
+    var i1 = new Int32Array(3);
+    var gw = new Float64Array(3);
+    var bb = new Float64Array(3);
+    var ff = new Float64Array(3);
+    var c = [
+      new Float64Array(4), new Float64Array(4), new Float64Array(4), new Float64Array(4),
+      new Float64Array(4), new Float64Array(4), new Float64Array(4), new Float64Array(4)
+    ];
+    var x00 = new Float64Array(4), x10 = new Float64Array(4);
+    var x01 = new Float64Array(4), x11 = new Float64Array(4);
+    var y0 = new Float64Array(4), y1 = new Float64Array(4);
+
+    /* ---- storage ---- */
+
+    function createAtlas() {
+      return new Float32Array(W * H * 4);
+    }
+
+    /* Texel (x,y) -> element index. Row 0 is v = 0, matching the order
+       texImage2D consumes a Float32Array. */
+    function texelIndex(tx, ty) {
+      return (ty * W + tx) * 4;
+    }
+
+    function texelFetch(tex, texel, out) {
+      var tx = texel[0], ty = texel[1];
+      if (!(tx >= 0 && tx < W && ty >= 0 && ty < H)) {
+        throw new RangeError('texelFetch out of range: (' + tx + ',' + ty + ') in ' + W + 'x' + H);
+      }
+      var o = out || sFetch;
+      var i = texelIndex(tx, ty);
+      o[0] = tex[i]; o[1] = tex[i + 1]; o[2] = tex[i + 2]; o[3] = tex[i + 3];
+      return o;
+    }
+
+    function store(tex, cx, cy, cz, v0, v1, v2, v3) {
+      sCell[0] = cx; sCell[1] = cy; sCell[2] = cz;
+      var t = cellToTexel(sCell, sTexel);
+      var i = texelIndex(t[0], t[1]);
+      tex[i] = v0; tex[i + 1] = v1; tex[i + 2] = v2; tex[i + 3] = v3;
+    }
+
+    function load(tex, cx, cy, cz, out) {
+      sCell[0] = cx; sCell[1] = cy; sCell[2] = cz;
+      return texelFetch(tex, cellToTexel(sCell, sTexel), out);
+    }
+
+    /* ---- the six ---- */
+
+    function cellToTexel(cell, out) {
+      var o = out || sTexel;
+      var cx = (cell[0] | 0) & N_MASK;
+      var cy = (cell[1] | 0) & N_MASK;
+      var cz = (cell[2] | 0) & N_MASK;
+      var tx = cz & TILES_X_MASK;
+      var ty = cz >> TILES_X_SHIFT;
+      o[0] = tx * N + cx;
+      o[1] = ty * N + cy;
+      return o;
+    }
+
+    function texelToCell(texel, out) {
+      var o = out || sCell;
+      var cx = texel[0] & N_MASK;
+      var cy = texel[1] & N_MASK;
+      var tx = texel[0] >> N_SHIFT;
+      var ty = texel[1] >> N_SHIFT;
+      var cz = ty * TILES_X + tx;
+      o[0] = cx; o[1] = cy; o[2] = cz;
+      return o;
+    }
+
+    function cellToUV(cell, out) {
+      var o = out || sUV;
+      var c0 = R(cell[0] - R(NF * Math.floor(R(cell[0] * INV_N))));
+      var c1 = R(cell[1] - R(NF * Math.floor(R(cell[1] * INV_N))));
+      var c2 = R(cell[2] - R(NF * Math.floor(R(cell[2] * INV_N))));
+      var z = Math.floor(c2);
+      var ty = Math.floor(R(z * INV_TILES_X));
+      var tx = R(z - R(TILES_XF * ty));
+      o[0] = R(R(R(R(tx * NF) + c0) + 0.5) * INV_W);
+      o[1] = R(R(R(R(ty * NF) + c1) + 0.5) * INV_H);
+      return o;
+    }
+
+    function worldToGrid(p, L, out) {
+      var o = out || sVec;
+      o[0] = R(R(R(R(p[0] / L) + 0.5) * NF) - 0.5);
+      o[1] = R(R(R(R(p[1] / L) + 0.5) * NF) - 0.5);
+      o[2] = R(R(R(R(p[2] / L) + 0.5) * NF) - 0.5);
+      return o;
+    }
+
+    function gridToWorld(g, L, out) {
+      var o = out || sVec;
+      o[0] = R(R(R(R(g[0] + 0.5) * INV_N) - 0.5) * L);
+      o[1] = R(R(R(R(g[1] + 0.5) * INV_N) - 0.5) * L);
+      o[2] = R(R(R(R(g[2] + 0.5) * INV_N) - 0.5) * L);
+      return o;
+    }
+
+    /* GLSL mix(x, y, a) is defined as x*(1-a) + y*a. Reproduced literally so
+       that fp32 mode rounds where the hardware rounds — modulo an FMA the
+       driver may fuse, which no CPU mirror can predict. */
+    function mix4(x, y, a, o) {
+      var ia = R(1 - a);
+      o[0] = R(R(x[0] * ia) + R(y[0] * a));
+      o[1] = R(R(x[1] * ia) + R(y[1] * a));
+      o[2] = R(R(x[2] * ia) + R(y[2] * a));
+      o[3] = R(R(x[3] * ia) + R(y[3] * a));
+      return o;
+    }
+
+    function sampleGrid(tex, gridPos, out) {
+      var o = out || sSample;
+      var k;
+      for (k = 0; k < 3; k++) {
+        gw[k] = R(gridPos[k] - R(NF * Math.floor(R(gridPos[k] * INV_N))));
+        bb[k] = Math.floor(gw[k]);
+        ff[k] = R(gw[k] - bb[k]);
+        i0[k] = (bb[k] | 0) & N_MASK;
+        i1[k] = (i0[k] + 1) & N_MASK;
+      }
+      /* Same eight corners, same order as the GLSL. */
+      fetchCell(tex, i0[0], i0[1], i0[2], c[0]);
+      fetchCell(tex, i1[0], i0[1], i0[2], c[1]);
+      fetchCell(tex, i0[0], i1[1], i0[2], c[2]);
+      fetchCell(tex, i1[0], i1[1], i0[2], c[3]);
+      fetchCell(tex, i0[0], i0[1], i1[2], c[4]);
+      fetchCell(tex, i1[0], i0[1], i1[2], c[5]);
+      fetchCell(tex, i0[0], i1[1], i1[2], c[6]);
+      fetchCell(tex, i1[0], i1[1], i1[2], c[7]);
+      mix4(c[0], c[1], ff[0], x00);
+      mix4(c[2], c[3], ff[0], x10);
+      mix4(c[4], c[5], ff[0], x01);
+      mix4(c[6], c[7], ff[0], x11);
+      mix4(x00, x10, ff[1], y0);
+      mix4(x01, x11, ff[1], y1);
+      return mix4(y0, y1, ff[2], o);
+    }
+
+    function fetchCell(tex, cx, cy, cz, out) {
+      var tx = (cz & TILES_X_MASK) * N + (cx & N_MASK);
+      var ty = (cz >> TILES_X_SHIFT) * N + (cy & N_MASK);
+      if (!(tx >= 0 && tx < W && ty >= 0 && ty < H)) {
+        throw new RangeError('sampleGrid fetch out of range: (' + tx + ',' + ty + ')');
+      }
+      var i = (ty * W + tx) * 4;
+      out[0] = tex[i]; out[1] = tex[i + 1]; out[2] = tex[i + 2]; out[3] = tex[i + 3];
+      return out;
+    }
+
+    var gp = new Float64Array(3);
+
+    function gradGrid(tex, gridPos, h, out) {
+      var o = out || sGrad;
+      var inv = R(0.5 / h);
+      var k, d;
+      var res = [0, 0, 0];
+      for (k = 0; k < 3; k++) {
+        for (d = 0; d < 3; d++) gp[d] = gridPos[d];
+        gp[k] = R(gridPos[k] + h);
+        var plus = sampleGrid(tex, gp, sSample)[0];
+        gp[k] = R(gridPos[k] - h);
+        var minus = sampleGrid(tex, gp, sSample)[0];
+        res[k] = R(plus - minus);
+      }
+      o[0] = R(res[0] * inv);
+      o[1] = R(res[1] * inv);
+      o[2] = R(res[2] * inv);
+      return o;
+    }
+
+    return {
+      layout: { N: C.N, tilesX: C.TILES_X, tilesY: C.TILES_Y, width: W, height: H },
+      constants: C,
+      fp32: fp32,
+      createAtlas: createAtlas,
+      texelIndex: texelIndex,
+      texelFetch: texelFetch,
+      store: store,
+      load: load,
+      cellToUV: cellToUV,
+      cellToTexel: cellToTexel,
+      texelToCell: texelToCell,
+      worldToGrid: worldToGrid,
+      gridToWorld: gridToWorld,
+      sampleGrid: sampleGrid,
+      gradGrid: gradGrid
+    };
+  }
+
+  root.HotaruAtlas = {
+    SIZES: SIZES,
+    layout: layout,
+    constants: constants,
+    GLSL: GLSL,
+    mirror: mirror
+  };
+})(globalThis);
+
+/* ─── hotaru/engine.js ──────────────────────────────────────────── */
+/* Hotaru — GPGPU particle field.
+   Position and velocity live in floating point textures. Every frame one
+   fragment shader integrates all particles at once (multiple render targets,
+   ping-ponged), then a single gl.POINTS draw reads them back by gl_VertexID.
+   Scene goes to an offscreen buffer, gets a bright-pass and a separable blur,
+   and is composited with tone mapping, vignette and grain. */
+(function (root) {
+  'use strict';
+
+  /* ── tiny mat4 ─────────────────────────────────────────────────────── */
+
+  function m4() { return new Float32Array(16); }
+
+  function perspective(out, fovy, aspect, near, far) {
+    var f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
+    out[0] = f / aspect; out[1] = 0; out[2] = 0; out[3] = 0;
+    out[4] = 0; out[5] = f; out[6] = 0; out[7] = 0;
+    out[8] = 0; out[9] = 0; out[10] = (far + near) * nf; out[11] = -1;
+    out[12] = 0; out[13] = 0; out[14] = 2 * far * near * nf; out[15] = 0;
+    return out;
+  }
+
+  function lookAt(out, eye, center, up) {
+    var zx = eye[0] - center[0], zy = eye[1] - center[1], zz = eye[2] - center[2];
+    var zl = Math.hypot(zx, zy, zz) || 1; zx /= zl; zy /= zl; zz /= zl;
+    var xx = up[1] * zz - up[2] * zy, xy = up[2] * zx - up[0] * zz, xz = up[0] * zy - up[1] * zx;
+    var xl = Math.hypot(xx, xy, xz) || 1; xx /= xl; xy /= xl; xz /= xl;
+    var yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+    out[0] = xx; out[1] = yx; out[2] = zx; out[3] = 0;
+    out[4] = xy; out[5] = yy; out[6] = zy; out[7] = 0;
+    out[8] = xz; out[9] = yz; out[10] = zz; out[11] = 0;
+    out[12] = -(xx * eye[0] + xy * eye[1] + xz * eye[2]);
+    out[13] = -(yx * eye[0] + yy * eye[1] + yz * eye[2]);
+    out[14] = -(zx * eye[0] + zy * eye[1] + zz * eye[2]);
+    out[15] = 1;
+    return out;
+  }
+
+  function mul(out, a, b) {
+    for (var c = 0; c < 4; c++) {
+      var b0 = b[c * 4], b1 = b[c * 4 + 1], b2 = b[c * 4 + 2], b3 = b[c * 4 + 3];
+      out[c * 4]     = a[0] * b0 + a[4] * b1 + a[8]  * b2 + a[12] * b3;
+      out[c * 4 + 1] = a[1] * b0 + a[5] * b1 + a[9]  * b2 + a[13] * b3;
+      out[c * 4 + 2] = a[2] * b0 + a[6] * b1 + a[10] * b2 + a[14] * b3;
+      out[c * 4 + 3] = a[3] * b0 + a[7] * b1 + a[11] * b2 + a[15] * b3;
+    }
+    return out;
+  }
+
+  /* ── deterministic rng ─────────────────────────────────────────────── */
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* ── shader sources ────────────────────────────────────────────────── */
+
+  // Used only if hotaru/noise.js was not loaded. Cheap value noise, so the
+  // page still moves rather than failing to compile.
+  var FALLBACK_NOISE = [
+    'vec3 hash33(vec3 p){',
+    '  p = vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6)));',
+    '  return fract(sin(p) * 43758.5453123) * 2.0 - 1.0;',
+    '}',
+    'float snoise(vec3 p){',
+    '  vec3 i = floor(p), f = fract(p);',
+    '  vec3 u = f * f * (3.0 - 2.0 * f);',
+    '  float n = 0.0;',
+    '  for (int dx = 0; dx < 2; dx++) for (int dy = 0; dy < 2; dy++) for (int dz = 0; dz < 2; dz++) {',
+    '    vec3 o = vec3(float(dx), float(dy), float(dz));',
+    '    float w = mix(1.0 - u.x, u.x, o.x) * mix(1.0 - u.y, u.y, o.y) * mix(1.0 - u.z, u.z, o.z);',
+    '    n += w * dot(hash33(i + o), f - o);',
+    '  }',
+    '  return clamp(n * 2.0, -1.0, 1.0);',
+    '}',
+    'vec3 curlNoise(vec3 p){',
+    '  const float e = 0.12;',
+    '  vec3 ax = vec3(137.3, 0.0, 0.0), ay = vec3(0.0, 271.9, 0.0), az = vec3(0.0, 0.0, 419.1);',
+    '  float x1 = snoise(p + vec3(0.0, e, 0.0) + az), x2 = snoise(p - vec3(0.0, e, 0.0) + az);',
+    '  float x3 = snoise(p + vec3(0.0, 0.0, e) + ay), x4 = snoise(p - vec3(0.0, 0.0, e) + ay);',
+    '  float y1 = snoise(p + vec3(0.0, 0.0, e) + ax), y2 = snoise(p - vec3(0.0, 0.0, e) + ax);',
+    '  float y3 = snoise(p + vec3(e, 0.0, 0.0) + az), y4 = snoise(p - vec3(e, 0.0, 0.0) + az);',
+    '  float z1 = snoise(p + vec3(e, 0.0, 0.0) + ay), z2 = snoise(p - vec3(e, 0.0, 0.0) + ay);',
+    '  float z3 = snoise(p + vec3(0.0, e, 0.0) + ax), z4 = snoise(p - vec3(0.0, e, 0.0) + ax);',
+    '  return normalize(vec3((x1 - x2) - (x3 - x4), (y1 - y2) - (y3 - y4), (z1 - z2) - (z3 - z4)) / (2.0 * e) + 1e-6);',
+    '}'
+  ].join('\n');
+
+  function noisePrelude() {
+    var N = root.HotaruNoise;
+    if (N && typeof N.PRELUDE === 'string' && N.PRELUDE.indexOf('curlNoise') > -1) return N.PRELUDE;
+    return FALLBACK_NOISE;
+  }
+
+  var VS_FULL =
+'#version 300 es\n' +
+'precision highp float;\n' +
+'out vec2 vUv;\n' +
+'void main() {\n' +
+'  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));\n' +
+'  vUv = p;\n' +
+'  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n' +
+'}\n';
+
+  /* ── gravity: shared GLSL ───────────────────────────────────────────
+     The 3D grid lives in a 2D atlas of z-slices, so every cell lookup has to
+     go through HotaruAtlas's mapping; a plain texture() would blend across a
+     slice seam and pull the whole field sideways. */
+  function atlasPrelude(atlas) {
+    if (!atlas) return '';
+    // cellToTexel already wraps the cell index into [0, N), so a neighbour
+    // offset that walks off the grid lands on the periodic image by itself.
+    return atlas.glsl + '\n' +
+'float fetchCell(sampler2D tex, ivec3 c) { return texelFetch(tex, cellToTexel(c), 0).r; }\n';
+  }
+
+  function simFS(atlas) {
+    return (
+'#version 300 es\n' +
+'precision highp float;\n' +
+'uniform sampler2D uPos;\n' +
+'uniform sampler2D uVel;\n' +
+'uniform sampler2D uTgt;\n' +
+'uniform float uDt, uTime, uSpring, uDamp, uNoiseAmp, uNoiseScale, uFlowSpeed;\n' +
+'uniform float uPointerActive, uPointerRadius, uPointerPush, uPointerSwirl, uAspect;\n' +
+'uniform vec2  uPointer;\n' +
+'uniform vec3  uCamRight, uCamUp;\n' +
+'uniform mat4  uViewProj;\n' +
+'uniform float uHome;\n' +
+'uniform sampler2D uPhi;\n' +
+'uniform float uGravity, uBoxL, uCellH, uForceClamp;\n' +
+'uniform float uKickSigma, uKickSpin;\n' +
+'layout(location = 0) out vec4 oPos;\n' +
+'layout(location = 1) out vec4 oVel;\n' +
+noisePrelude() + '\n' +
+atlasPrelude(atlas) + '\n' +
+'void main() {\n' +
+'  ivec2 uv = ivec2(gl_FragCoord.xy);\n' +
+'  vec4 P = texelFetch(uPos, uv, 0);\n' +
+'  vec4 V = texelFetch(uVel, uv, 0);\n' +
+'  vec4 T = texelFetch(uTgt, uv, 0);\n' +
+'  vec3 p = P.xyz;\n' +
+'  vec3 v = V.xyz;\n' +
+'  float seed = P.w;\n' +
+'  float jitter = 0.72 + 0.56 * seed;\n' +
+'\n' +
+'  vec3 acc = (T.xyz - p) * (uSpring * jitter);\n' +
+'\n' +
+'  vec3 np = p * uNoiseScale + vec3(0.0, uTime * uFlowSpeed, uTime * uFlowSpeed * 0.35);\n' +
+'  acc += curlNoise(np) * (uNoiseAmp * jitter);\n' +
+'\n' +
+'  float r = length(p);\n' +
+'  if (r > 2.4) acc -= p * ((r - 2.4) * 2.0);\n' +
+'\n' +
+'  if (uPointerActive > 0.0) {\n' +
+'    vec4 clip = uViewProj * vec4(p, 1.0);\n' +
+'    vec2 ndc = clip.xy / max(abs(clip.w), 1e-4);\n' +
+'    vec2 d = (ndc - uPointer) * vec2(uAspect, 1.0);\n' +
+'    float dist = length(d);\n' +
+'    if (dist < uPointerRadius && clip.w > 0.0) {\n' +
+'      float f = 1.0 - dist / uPointerRadius;\n' +
+'      f = f * f * uPointerActive;\n' +
+'      vec2 dir = dist > 1e-5 ? d / dist : vec2(0.7071, 0.7071);\n' +
+'      acc += (uCamRight * dir.x + uCamUp * dir.y) * (f * uPointerPush * jitter);\n' +
+'      acc += (uCamRight * -dir.y + uCamUp * dir.x) * (f * uPointerSwirl);\n' +
+'    }\n' +
+'  }\n' +
+'\n' +
+'  acc += (T.xyz - p) * uHome;\n' +
+'\n' +
+(atlas
+  // gradGrid differentiates with respect to GRID coordinates, so the result is
+  // scaled by N/L to become an acceleration per world unit.
+? '  if (uGravity > 0.0) {\n' +
+  '    vec3 g = worldToGrid(p, uBoxL);\n' +
+  '    vec3 a = -gradGrid(uPhi, g, 1.0) * (HA_NF / uBoxL) * uGravity;\n' +
+  '    float m = length(a);\n' +
+  '    if (m > uForceClamp) a *= uForceClamp / m;\n' +
+  '    acc += a;\n' +
+  '  }\n'
+: '') +
+'\n' +
+'  if (uKickSigma > 0.0 || uKickSpin != 0.0) {\n' +
+'    v += curlNoise(p * 2.7 + vec3(seed * 37.0)) * uKickSigma;\n' +
+'    v += cross(vec3(0.0, 1.0, 0.0), p) * uKickSpin;\n' +
+'  }\n' +
+'\n' +
+'  v += acc * uDt;\n' +
+'  v *= pow(uDamp, uDt * 60.0);\n' +
+'  float sp = length(v);\n' +
+'  if (sp > 8.0) v *= 8.0 / sp;\n' +
+'  p += v * uDt;\n' +
+'\n' +
+'  oPos = vec4(p, seed);\n' +
+'  oVel = vec4(v, mix(V.w, clamp((sp - 0.22) * 1.25, 0.0, 1.0), 1.0 - pow(0.86, uDt * 60.0)));\n' +
+'}\n');
+  }
+
+  var VS_POINTS =
+'#version 300 es\n' +
+'precision highp float;\n' +
+'uniform sampler2D uPos;\n' +
+'uniform sampler2D uVel;\n' +
+'uniform mat4 uViewProj;\n' +
+'uniform ivec2 uTexSize;\n' +
+'uniform float uPointScale, uSizeMin, uSizeMax, uBrightness;\n' +
+'out vec3 vColor;\n' +
+'out float vAlpha;\n' +
+'void main() {\n' +
+'  int id = gl_VertexID;\n' +
+'  ivec2 uv = ivec2(id % uTexSize.x, id / uTexSize.x);\n' +
+'  vec4 P = texelFetch(uPos, uv, 0);\n' +
+'  vec4 V = texelFetch(uVel, uv, 0);\n' +
+'  vec4 clip = uViewProj * vec4(P.xyz, 1.0);\n' +
+'  gl_Position = clip;\n' +
+'  float w = max(clip.w, 0.15);\n' +
+'  float near = clamp(1.0 - (w - 2.2) / 3.4, 0.0, 1.0);\n' +
+'  gl_PointSize = clamp(uPointScale * (0.62 + 0.76 * P.w) / w, uSizeMin, uSizeMax);\n' +
+'\n' +
+'  vec3 deep = vec3(0.96, 0.34, 0.05);\n' +
+'  vec3 warm = vec3(1.00, 0.64, 0.19);\n' +
+'  vec3 hot  = vec3(1.00, 0.93, 0.74);\n' +
+'  vec3 cool = vec3(0.24, 0.58, 0.82);\n' +
+'  float heat = clamp(V.w, 0.0, 1.0);\n' +
+'  vec3 c = mix(deep, warm, smoothstep(0.0, 0.45, near + P.w * 0.22));\n' +
+'  c = mix(c, cool, (1.0 - near) * 0.38 * (0.35 + 0.65 * P.w));\n' +
+'  c = mix(c, hot, heat * heat * 0.58);\n' +
+'  float twinkle = 0.78 + 0.22 * sin(P.w * 43.7 + float(id % 97) * 0.13);\n' +
+'  vColor = c * uBrightness * twinkle;\n' +
+'  vAlpha = (0.30 + 0.70 * near) * (0.55 + 0.45 * P.w);\n' +
+'}\n';
+
+  var FS_POINTS =
+'#version 300 es\n' +
+'precision highp float;\n' +
+'in vec3 vColor;\n' +
+'in float vAlpha;\n' +
+'out vec4 frag;\n' +
+'void main() {\n' +
+'  vec2 d = gl_PointCoord - 0.5;\n' +
+'  float r2 = dot(d, d);\n' +
+'  if (r2 > 0.25) discard;\n' +
+'  float core = exp(-r2 * 26.0);\n' +
+'  float halo = exp(-r2 * 5.2) * 0.22;\n' +
+'  float a = (core + halo) * vAlpha;\n' +
+'  frag = vec4(vColor * a, a);\n' +
+'}\n';
+
+  /* Mass deposition: every particle is drawn as a single point into the cell it
+     occupies, with additive blending, so the atlas ends up holding a particle
+     count per cell. Nearest-grid-point rather than cloud-in-cell — a point
+     sprite can only write one texel, and the grid already smooths the field. */
+  function depositVS(atlas) {
+    return (
+'#version 300 es\n' +
+'precision highp float;\n' +
+'uniform sampler2D uPos;\n' +
+'uniform ivec2 uTexSize;\n' +
+'uniform float uBoxL;\n' +
+atlas.glsl + '\n' +
+'void main() {\n' +
+'  int id = gl_VertexID;\n' +
+'  ivec2 uv = ivec2(id % uTexSize.x, id / uTexSize.x);\n' +
+'  vec3 p = texelFetch(uPos, uv, 0).xyz;\n' +
+'  vec3 g = worldToGrid(p, uBoxL);\n' +
+'  ivec2 t = cellToTexel(ivec3(floor(g + 0.5)));\n' +
+'  vec2 ndc = (vec2(t) + 0.5) / vec2(float(HA_W), float(HA_H)) * 2.0 - 1.0;\n' +
+'  gl_Position = vec4(ndc, 0.0, 1.0);\n' +
+'  gl_PointSize = 1.0;\n' +
+'}\n');
+  }
+
+  var FS_DEPOSIT =
+'#version 300 es\n' +
+'precision highp float;\n' +
+'out vec4 frag;\n' +
+'void main() { frag = vec4(1.0, 0.0, 0.0, 0.0); }\n';
+
+  /* One 7-point Poisson sweep, combined with the two previous iterates by the
+     Chebyshev recurrence. The sweep is identical to plain Jacobi; only what is
+     written differs. A CPU reference (hotaru/pm.js, test/pm.test.js) measured
+     the cost of both: to hold the particle force error under 3% at N=64,
+     warm-started, plain Jacobi needs ~83 passes and this needs ~10. The mean
+     density is subtracted because a periodic box has no solution otherwise. */
+  function relaxFS(atlas) {
+    return ['#version 300 es',
+      'precision highp float;',
+      'uniform sampler2D uPhi;',
+      'uniform sampler2D uPhiPrev;',
+      'uniform sampler2D uRho;',
+      'uniform float uPoissonK, uMeanCount, uC1, uC2, uAlpha, uBeta, uFirst;',
+      atlas.glsl,
+      'float fetchCell(sampler2D tex, ivec3 c) { return texelFetch(tex, cellToTexel(c), 0).r; }',
+      'out vec4 frag;',
+      'void main() {',
+      '  ivec2 t = ivec2(gl_FragCoord.xy);',
+      '  ivec3 c = ivec3(texelToCell(t));',
+      '  float s = fetchCell(uPhi, c + ivec3(1, 0, 0)) + fetchCell(uPhi, c - ivec3(1, 0, 0))',
+      '          + fetchCell(uPhi, c + ivec3(0, 1, 0)) + fetchCell(uPhi, c - ivec3(0, 1, 0))',
+      '          + fetchCell(uPhi, c + ivec3(0, 0, 1)) + fetchCell(uPhi, c - ivec3(0, 0, 1));',
+      '  float n = fetchCell(uRho, c) - uMeanCount;',
+      '  float y = (s - uPoissonK * n) / 6.0;',
+      '  float xk = fetchCell(uPhi, c);',
+      '  float comb = uC1 * y - uC2 * xk;',
+      '  float next = uFirst > 0.5',
+      '    ? comb * uAlpha',
+      '    : uAlpha * comb - uBeta * fetchCell(uPhiPrev, c);',
+      '  frag = vec4(next, 0.0, 0.0, 1.0);',
+      '}'].join(String.fromCharCode(10)) + String.fromCharCode(10);
+  }
+  var FS_BRIGHT =
+'#version 300 es\n' +
+'precision highp float;\n' +
+'uniform sampler2D uSrc;\n' +
+'uniform float uThreshold, uIntensity;\n' +
+'in vec2 vUv;\n' +
+'out vec4 frag;\n' +
+'void main() {\n' +
+'  vec3 c = texture(uSrc, vUv).rgb;\n' +
+'  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));\n' +
+'  float k = max(l - uThreshold, 0.0) / max(l, 1e-4);\n' +
+'  frag = vec4(c * k * uIntensity, 1.0);\n' +
+'}\n';
+
+  var FS_BLUR =
+'#version 300 es\n' +
+'precision highp float;\n' +
+'uniform sampler2D uSrc;\n' +
+'uniform vec2 uStep;\n' +
+'in vec2 vUv;\n' +
+'out vec4 frag;\n' +
+'const float W[5] = float[5](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);\n' +
+'void main() {\n' +
+'  vec3 c = texture(uSrc, vUv).rgb * W[0];\n' +
+'  for (int i = 1; i < 5; i++) {\n' +
+'    vec2 o = uStep * float(i);\n' +
+'    c += texture(uSrc, vUv + o).rgb * W[i];\n' +
+'    c += texture(uSrc, vUv - o).rgb * W[i];\n' +
+'  }\n' +
+'  frag = vec4(c, 1.0);\n' +
+'}\n';
+
+  /* Auto-exposure. The scene's mipmap chain reduces it to one texel, which is
+     its average brightness; that value is smoothed into a 1x1 buffer over time
+     and used as a gain at composite. A simulation whose density changes by two
+     orders of magnitude cannot be exposed by hand. */
+  var FS_LUM =
+'#version 300 es\n' +
+'precision highp float;\n' +
+'uniform sampler2D uScene;\n' +
+'uniform sampler2D uPrev;\n' +
+'uniform float uRate, uLod;\n' +
+'out vec4 frag;\n' +
+'void main() {\n' +
+'  vec3 c = textureLod(uScene, vec2(0.5), uLod).rgb;\n' +
+'  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));\n' +
+'  float p = texelFetch(uPrev, ivec2(0, 0), 0).r;\n' +
+'  frag = vec4(p <= 0.0 ? l : mix(p, l, uRate), 0.0, 0.0, 1.0);\n' +
+'}\n';
+
+  var FS_COMPOSITE =
+'#version 300 es\n' +
+'precision highp float;\n' +
+'uniform sampler2D uScene;\n' +
+'uniform sampler2D uBloom;\n' +
+'uniform sampler2D uLum;\n' +
+'uniform float uAuto, uAutoTarget, uAutoMin, uAutoMax;\n' +
+'uniform float uBloomAmount, uExposure, uTime, uGrain;\n' +
+'in vec2 vUv;\n' +
+'out vec4 frag;\n' +
+'vec3 aces(vec3 x) {\n' +
+'  return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);\n' +
+'}\n' +
+'void main() {\n' +
+'  vec3 scene = texture(uScene, vUv).rgb;\n' +
+'  vec3 bloom = texture(uBloom, vUv).rgb;\n' +
+'  vec3 c = scene + bloom * uBloomAmount;\n' +
+'  float l = max(texelFetch(uLum, ivec2(0, 0), 0).r, 1e-5);\n' +
+'  float gain = mix(1.0, clamp(uAutoTarget / l, uAutoMin, uAutoMax), uAuto);\n' +
+'  c = aces(c * uExposure * gain);\n' +
+'  vec2 q = vUv - 0.5;\n' +
+'  c += vec3(0.020, 0.028, 0.052) * (1.0 - smoothstep(0.0, 0.85, length(q)));\n' +
+'  c *= 1.0 - 0.55 * dot(q, q);\n' +
+'  float g = fract(sin(dot(gl_FragCoord.xy + uTime * 60.0, vec2(12.9898, 78.233))) * 43758.5453);\n' +
+'  c += (g - 0.5) * uGrain;\n' +
+'  frag = vec4(max(c, 0.0), 1.0);\n' +
+'}\n';
+
+  /* ── gl helpers ────────────────────────────────────────────────────── */
+
+  function compile(gl, type, src, label) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      var log = gl.getShaderInfoLog(s);
+      gl.deleteShader(s);
+      throw new Error(label + ' shader failed: ' + log);
+    }
+    return s;
+  }
+
+  function program(gl, vsSrc, fsSrc, label) {
+    var vs = compile(gl, gl.VERTEX_SHADER, vsSrc, label + ' vertex');
+    var fs = compile(gl, gl.FRAGMENT_SHADER, fsSrc, label + ' fragment');
+    var p = gl.createProgram();
+    gl.attachShader(p, vs); gl.attachShader(p, fs);
+    gl.linkProgram(p);
+    gl.deleteShader(vs); gl.deleteShader(fs);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      var log = gl.getProgramInfoLog(p);
+      gl.deleteProgram(p);
+      throw new Error(label + ' link failed: ' + log);
+    }
+    var u = {};
+    var n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for (var i = 0; i < n; i++) {
+      var info = gl.getActiveUniform(p, i);
+      u[info.name.replace('[0]', '')] = gl.getUniformLocation(p, info.name);
+    }
+    return { p: p, u: u };
+  }
+
+  function makeTex(gl, w, h, internal, format, type, data) {
+    var t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, data || null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return t;
+  }
+
+  function linear(gl, t) {
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return t;
+  }
+
+  function fbo(gl, attachments) {
+    var f = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+    var bufs = [];
+    for (var i = 0; i < attachments.length; i++) {
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, attachments[i], 0);
+      bufs.push(gl.COLOR_ATTACHMENT0 + i);
+    }
+    gl.drawBuffers(bufs);
+    var ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    if (!ok) throw new Error('framebuffer incomplete');
+    return f;
+  }
+
+  /* ── engine ────────────────────────────────────────────────────────── */
+
+  function Engine(canvas, opts) {
+    opts = opts || {};
+    this.canvas = canvas;
+    this.onError = opts.onError || function () {};
+
+    var attrs = { alpha: false, antialias: false, depth: false, stencil: false,
+      premultipliedAlpha: false, preserveDrawingBuffer: !!opts.preserveBuffer,
+      powerPreference: 'high-performance',
+      failIfMajorPerformanceCaveat: false };
+    var gl = canvas.getContext('webgl2', attrs);
+    if (!gl) throw new Error('WebGL2 is not available in this browser.');
+    this.gl = gl;
+
+    this.floatRender = !!gl.getExtension('EXT_color_buffer_float');
+    this.halfRender = this.floatRender || !!gl.getExtension('EXT_color_buffer_half_float');
+    if (!this.floatRender && !this.halfRender) throw new Error('This GPU cannot render to floating point textures.');
+    gl.getExtension('OES_texture_float_linear');
+
+    this.simFmt = this.floatRender
+      ? { internal: gl.RGBA32F, type: gl.FLOAT, Arr: Float32Array }
+      : { internal: gl.RGBA16F, type: gl.HALF_FLOAT, Arr: Uint16Array };
+    this.sceneFmt = this.floatRender ? gl.RGBA16F : gl.RGBA16F;
+
+    var psr = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE);
+    this.pointMax = Math.max(4, Math.min(psr ? psr[1] : 8, 14));
+    this.vertexUnits = gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS);
+    if (this.vertexUnits < 2) throw new Error('This GPU cannot read textures in the vertex stage.');
+
+    /* The gravity grid has to be chosen before the shaders are built, because
+       its dimensions are compiled into them. */
+    this.atlas = null;
+    this.gravityError = null;
+    this.floatBlend = !!gl.getExtension('EXT_float_blend');
+    if (root.HotaruAtlas && opts.gravity !== false) {
+      try {
+        var lay = root.HotaruAtlas.layout(opts.gridN || ((opts.count || 262144) >= 262144 ? 64 : 32));
+        this.atlas = { N: lay.N, w: lay.width, h: lay.height, glsl: root.HotaruAtlas.GLSL(lay) };
+      } catch (e) { this.gravityError = 'grid layout: ' + e.message; }
+    } else if (!root.HotaruAtlas) {
+      this.gravityError = 'atlas module not loaded';
+    }
+
+    this.progSim = program(gl, VS_FULL, simFS(this.atlas), 'simulate');
+    this.progPoints = program(gl, VS_POINTS, FS_POINTS, 'points');
+    this.progBright = program(gl, VS_FULL, FS_BRIGHT, 'bright');
+    this.progBlur = program(gl, VS_FULL, FS_BLUR, 'blur');
+    this.progComp = program(gl, VS_FULL, FS_COMPOSITE, 'composite');
+    this.progLum = program(gl, VS_FULL, FS_LUM, 'luminance');
+
+    if (this.atlas) {
+      try {
+        this.progDeposit = program(gl, depositVS(this.atlas), FS_DEPOSIT, 'deposit');
+        this.progRelax = program(gl, VS_FULL, relaxFS(this.atlas), 'relax');
+        this._makeGrid();
+      } catch (e) { this.atlas = null; this.gravityError = e.message; }
+    }
+
+    this.vao = gl.createVertexArray();
+
+    this.view = m4(); this.proj = m4(); this.viewProj = m4();
+    this.camRight = new Float32Array(3);
+    this.camUp = new Float32Array(3);
+
+    this.time = 0;
+    this.spin = 0;
+    this.pointer = { x: 0, y: 0, active: 0, target: 0 };
+    this.params = {
+      spring: 2.6, damp: 0.90, noiseAmp: 0.55, noiseScale: 1.35, flowSpeed: 0.09,
+      pointerRadius: 0.42, pointerPush: 26.0, pointerSwirl: 16.0,
+      // pointScale is "pixels at view-space depth 1" — the shader divides by w,
+      // and the engine scales it by particle count so total coverage stays put.
+      brightness: 0.15, bloomAmount: 0.55, bloomThreshold: 0.45, exposure: 1.25,
+      grain: 0.018, pointScale: 8.5, home: 0.0, spinSpeed: 0.055, dist: 3.35, tilt: 0.17,
+      auto: 1, autoTarget: 0.055, autoMin: 0.10, autoMax: 4.0, autoRate: 0.035,
+      // Self-gravity. GM is G times the total mass of the cloud, so the physics
+      // does not change when the particle count drops to a lower tier.
+      gravity: 0, GM: 1.6, boxL: 5.0, relax: 14, forceClamp: 24.0,
+      gravDamp: 0.9995
+    };
+    this.formPulse = 0;
+    this._kick = null;
+
+    this.count = 0;
+    this.tw = 0; this.th = 0;
+    this.buffers = null;
+    this.targets = null;
+
+    this.width = 0; this.height = 0;
+    this.dpr = 1;
+    this.sceneTex = null;
+    this.frames = 0;
+    this.fps = 60;
+    this._fpsAcc = 0; this._fpsN = 0;
+    this.lost = false;
+
+    var self = this;
+    this._onLost = function (e) { e.preventDefault(); self.lost = true; };
+    this._onRestored = function () { self.lost = false; self.onError(new Error('graphics context was restored — reload to continue')); };
+    canvas.addEventListener('webglcontextlost', this._onLost, false);
+    canvas.addEventListener('webglcontextrestored', this._onRestored, false);
+
+    this.setCount(opts.count || 262144);
+    this.resize();
+  }
+
+  Engine.prototype._makeGrid = function () {
+    var gl = this.gl, a = this.atlas;
+    // Mass is accumulated with additive blending. Blending into a 32-bit float
+    // target needs EXT_float_blend; without it a 16-bit target still blends,
+    // but stops accumulating once a cell holds more than ~2048 particles.
+    var massInternal = this.floatBlend ? gl.R32F : gl.R16F;
+    var massType = this.floatBlend ? gl.FLOAT : gl.HALF_FLOAT;
+    this.rhoTex = makeTex(gl, a.w, a.h, massInternal, gl.RED, massType, null);
+    this.rhoFB = fbo(gl, [this.rhoTex]);
+    // Chebyshev needs x_{k-1}, x_k and a target, and WebGL cannot read and
+    // write one texture, so three buffers rotate instead of two.
+    this.phiTex = [];
+    this.phiFB = [];
+    for (var pi = 0; pi < 3; pi++) {
+      this.phiTex.push(makeTex(gl, a.w, a.h, gl.R32F, gl.RED, gl.FLOAT, null));
+      this.phiFB.push(fbo(gl, [this.phiTex[pi]]));
+    }
+    this.phiCur = 0;
+    // Jacobi spectral radius on the non-constant subspace of the 7-point
+    // periodic stencil: max over modes of (cos+cos+cos)/3.
+    var cb = { a: -1, b: (2 + Math.cos(2 * Math.PI / a.N)) / 3 };
+    var eta = (2 - cb.a - cb.b) / (cb.b - cb.a);
+    this.cheb = { eta: eta, c1: 4 / (cb.b - cb.a), c2: 2 * (cb.a + cb.b) / (cb.b - cb.a) };
+    this.clearPotential();
+  };
+
+  Engine.prototype.clearPotential = function () {
+    var gl = this.gl;
+    if (!this.atlas) return;
+    for (var i = 0; i < 3; i++) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.phiFB[i]);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  };
+
+  /* Deposit mass, then relax the potential. The relaxation is warm-started from
+     the previous frame, which is what makes a handful of Jacobi sweeps enough:
+     the field moves only a little between frames. */
+  Engine.prototype._gravityStep = function () {
+    var gl = this.gl, a = this.atlas, P = this.params;
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.rhoFB);
+    gl.viewport(0, 0, a.w, a.h);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    var D = this.progDeposit;
+    gl.useProgram(D.p);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.buffers.pos[this.cur]);
+    gl.uniform1i(D.u.uPos, 0);
+    gl.uniform2i(D.u.uTexSize, this.tw, this.th);
+    gl.uniform1f(D.u.uBoxL, P.boxL);
+    gl.drawArrays(gl.POINTS, 0, this.count);
+    gl.disable(gl.BLEND);
+
+    var h = P.boxL / a.N;
+    var R = this.progRelax, C = this.cheb;
+    gl.useProgram(R.p);
+    // phi uses cell particle counts, so G*m folds into one constant:
+    // 4*pi*G*(M/count)/h, which keeps the physics fixed across particle tiers.
+    gl.uniform1f(R.u.uPoissonK, 4 * Math.PI * P.GM / (this.count * h));
+    gl.uniform1f(R.u.uMeanCount, this.count / (a.N * a.N * a.N));
+    gl.uniform1f(R.u.uC1, C.c1);
+    gl.uniform1f(R.u.uC2, C.c2);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.rhoTex);
+    gl.uniform1i(R.u.uRho, 2);
+
+    var iters = Math.max(2, P.relax | 0);
+    var prev = this.phiCur, cur = this.phiCur, r = 1 / C.eta;
+    for (var k = 0; k < iters; k++) {
+      // k = 0 has no x_{k-1} yet: it starts from the warm-started field alone.
+      var first = k === 0;
+      var next = first ? (cur + 1) % 3 : (3 - prev - cur);
+      var alpha, beta, rNext;
+      if (first) { alpha = 1 / (2 * C.eta); beta = 0; }
+      else { rNext = 1 / (2 * C.eta - r); alpha = rNext; beta = r * rNext; r = rNext; }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.phiFB[next]);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.phiTex[cur]);
+      gl.uniform1i(R.u.uPhi, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, this.phiTex[prev]);
+      gl.uniform1i(R.u.uPhiPrev, 1);
+      gl.uniform1f(R.u.uFirst, first ? 1 : 0);
+      gl.uniform1f(R.u.uAlpha, alpha);
+      gl.uniform1f(R.u.uBeta, beta);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      prev = cur; cur = next;
+    }
+    this.phiCur = cur;
+  };
+
+  /* Release: gravity on, and one frame of a velocity kick. A little random
+     dispersion makes the cloud fragment instead of collapsing to one blob; a
+     little rotation is what turns the remnant into a disc. */
+  Engine.prototype.setGravity = function (on, kick) {
+    if (!this.atlas) return false;
+    this.params.gravity = on ? 1 : 0;
+    if (on) {
+      this.clearPotential();
+      this._kick = kick || { sigma: 0.22, spin: 0.30 };
+    } else {
+      this._kick = null;
+    }
+    return true;
+  };
+
+  Engine.prototype.hasGravity = function () { return !!this.atlas; };
+
+  /* Diagnostic: read a block of the position texture back and report how far
+     the cloud extends. Collapse and expansion are indistinguishable by eye once
+     the field fills the frame, so the tuning is done against these numbers. */
+  Engine.prototype.sampleRadius = function (side) {
+    var gl = this.gl;
+    var w = Math.min(side || 64, this.tw), h = Math.min(side || 64, this.th);
+    var buf = new Float32Array(w * h * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.buffers.fb[this.cur]);
+    gl.readBuffer(gl.COLOR_ATTACHMENT0);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.FLOAT, buf);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    var n = w * h, sum = 0, sum2 = 0, mx = 0, bad = 0;
+    for (var i = 0; i < n; i++) {
+      var x = buf[i * 4], y = buf[i * 4 + 1], z = buf[i * 4 + 2];
+      if (!isFinite(x) || !isFinite(y) || !isFinite(z)) { bad++; continue; }
+      var r = Math.sqrt(x * x + y * y + z * z);
+      sum += r; sum2 += r * r;
+      if (r > mx) mx = r;
+    }
+    var k = Math.max(1, n - bad);
+    return { mean: sum / k, rms: Math.sqrt(sum2 / k), max: mx, n: k, nonFinite: bad };
+  };
+
+  Engine.prototype.setCount = function (n) {
+    var gl = this.gl;
+    var tw = 1024;
+    if (n < 65536) tw = 256;
+    var th = Math.max(1, Math.ceil(n / tw));
+    var count = tw * th;
+
+    var prevTargets = this.targets;
+
+    if (this.buffers) this._freeBuffers();
+
+    var pos = new Float32Array(count * 4);
+    var vel = new Float32Array(count * 4);
+    var tgt = new Float32Array(count * 4);
+    var rnd = mulberry32(0x1F2E3D);
+    for (var i = 0; i < count; i++) {
+      var u = rnd() * 2 - 1, phi = rnd() * Math.PI * 2, rr = Math.cbrt(rnd()) * 1.55;
+      var s = Math.sqrt(Math.max(0, 1 - u * u));
+      pos[i * 4]     = rr * s * Math.cos(phi);
+      pos[i * 4 + 1] = rr * u;
+      pos[i * 4 + 2] = rr * s * Math.sin(phi);
+      pos[i * 4 + 3] = rnd();
+      tgt[i * 4]     = pos[i * 4];
+      tgt[i * 4 + 1] = pos[i * 4 + 1];
+      tgt[i * 4 + 2] = pos[i * 4 + 2];
+      tgt[i * 4 + 3] = rnd();
+    }
+
+    var F = this.simFmt;
+    var mk = function (data) {
+      return makeTex(gl, tw, th, F.internal, gl.RGBA, F.type, F.type === gl.FLOAT ? data : toHalf(data));
+    };
+
+    this.buffers = {
+      pos: [mk(pos), mk(pos)],
+      vel: [mk(vel), mk(vel)],
+      tgt: mk(tgt),
+      fb: []
+    };
+    this.buffers.fb = [
+      fbo(gl, [this.buffers.pos[0], this.buffers.vel[0]]),
+      fbo(gl, [this.buffers.pos[1], this.buffers.vel[1]])
+    ];
+    this.cur = 0;
+    this.count = count;
+    this.tw = tw; this.th = th;
+
+    if (prevTargets) this.setTargets(prevTargets);
+    return count;
+  };
+
+  Engine.prototype._freeBuffers = function () {
+    var gl = this.gl, b = this.buffers;
+    if (!b) return;
+    gl.deleteTexture(b.pos[0]); gl.deleteTexture(b.pos[1]);
+    gl.deleteTexture(b.vel[0]); gl.deleteTexture(b.vel[1]);
+    gl.deleteTexture(b.tgt);
+    gl.deleteFramebuffer(b.fb[0]); gl.deleteFramebuffer(b.fb[1]);
+    this.buffers = null;
+  };
+
+  /* xyz -> the w channel keeps a stable per-particle phase */
+  Engine.prototype.setTargets = function (xyz) {
+    var gl = this.gl, n = this.count;
+    this.targets = xyz;
+    var data = new Float32Array(n * 4);
+    var src = xyz.length / 3;
+    var rnd = mulberry32(0x5A17C3);
+    for (var i = 0; i < n; i++) {
+      var j = (i % src) * 3;
+      var spread = src < n ? 0.012 : 0.0;
+      data[i * 4]     = xyz[j]     + (spread ? (rnd() - 0.5) * spread : 0);
+      data[i * 4 + 1] = xyz[j + 1] + (spread ? (rnd() - 0.5) * spread : 0);
+      data[i * 4 + 2] = xyz[j + 2] + (spread ? (rnd() - 0.5) * spread : 0);
+      data[i * 4 + 3] = rnd();
+    }
+    gl.bindTexture(gl.TEXTURE_2D, this.buffers.tgt);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, this.tw, this.th, gl.RGBA,
+      this.simFmt.type, this.simFmt.type === gl.FLOAT ? data : toHalf(data));
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    this.formPulse = 1;
+  };
+
+  Engine.prototype.resize = function () {
+    var gl = this.gl, c = this.canvas;
+    var rect = c.getBoundingClientRect();
+    var cap = Math.min(window.devicePixelRatio || 1, this.count > 500000 ? 1.75 : 2);
+    var w = Math.max(1, Math.round(rect.width * cap));
+    var h = Math.max(1, Math.round(rect.height * cap));
+    if (w === this.width && h === this.height) return;
+    this.width = w; this.height = h; this.dpr = cap;
+    c.width = w; c.height = h;
+
+    if (this.scene) {
+      gl.deleteTexture(this.sceneTex); gl.deleteFramebuffer(this.scene);
+      gl.deleteTexture(this.bloomTexA); gl.deleteFramebuffer(this.bloomA);
+      gl.deleteTexture(this.bloomTexB); gl.deleteFramebuffer(this.bloomB);
+    }
+    var half = gl.HALF_FLOAT;
+    this.sceneTex = linear(gl, makeTex(gl, w, h, gl.RGBA16F, gl.RGBA, half, null));
+    gl.bindTexture(gl.TEXTURE_2D, this.sceneTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    this.sceneLod = Math.ceil(Math.log2(Math.max(w, h)));
+    this.scene = fbo(gl, [this.sceneTex]);
+    if (!this.lumTex) {
+      this.lumTex = [makeTex(gl, 1, 1, gl.R16F, gl.RED, gl.HALF_FLOAT, null),
+                     makeTex(gl, 1, 1, gl.R16F, gl.RED, gl.HALF_FLOAT, null)];
+      this.lumFB = [fbo(gl, [this.lumTex[0]]), fbo(gl, [this.lumTex[1]])];
+      this.lumCur = 0;
+      for (var li = 0; li < 2; li++) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lumFB[li]);
+        gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+    var bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2);
+    this.bw = bw; this.bh = bh;
+    this.bloomTexA = linear(gl, makeTex(gl, bw, bh, gl.RGBA16F, gl.RGBA, half, null));
+    this.bloomA = fbo(gl, [this.bloomTexA]);
+    this.bloomTexB = linear(gl, makeTex(gl, bw, bh, gl.RGBA16F, gl.RGBA, half, null));
+    this.bloomB = fbo(gl, [this.bloomTexB]);
+  };
+
+  Engine.prototype.setPointer = function (nx, ny, strength) {
+    this.pointer.x = nx; this.pointer.y = ny;
+    this.pointer.target = strength;
+  };
+
+  Engine.prototype.frame = function (dtMs) {
+    if (this.lost) return;
+    var gl = this.gl, P = this.params;
+    var dt = Math.min(Math.max(dtMs, 1), 48) / 1000;
+    this.time += dt;
+    this.spin += dt * P.spinSpeed;
+    this.frames++;
+
+    this._fpsAcc += dtMs; this._fpsN++;
+    if (this._fpsAcc > 500) { this.fps = 1000 / (this._fpsAcc / this._fpsN); this._fpsAcc = 0; this._fpsN = 0; }
+
+    this.pointer.active += (this.pointer.target - this.pointer.active) * Math.min(1, dt * 9);
+    this.formPulse *= Math.pow(0.12, dt);
+
+    var d = P.dist, a = this.spin, t = P.tilt;
+    var eye = [Math.sin(a) * d * Math.cos(t), Math.sin(t) * d, Math.cos(a) * d * Math.cos(t)];
+    lookAt(this.view, eye, [0, 0, 0], [0, 1, 0]);
+    perspective(this.proj, 0.85, this.width / this.height, 0.1, 40);
+    mul(this.viewProj, this.proj, this.view);
+    this.camRight[0] = this.view[0]; this.camRight[1] = this.view[4]; this.camRight[2] = this.view[8];
+    this.camUp[0] = this.view[1]; this.camUp[1] = this.view[5]; this.camUp[2] = this.view[9];
+
+    gl.bindVertexArray(this.vao);
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.BLEND);
+
+    /* 0. self-gravity: deposit mass, relax the potential */
+    var gravityOn = this.atlas && P.gravity > 0;
+    if (gravityOn) this._gravityStep();
+
+    /* 1. integrate */
+    var src = this.cur, dst = 1 - this.cur;
+    var S = this.progSim;
+    gl.useProgram(S.p);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.buffers.fb[dst]);
+    gl.viewport(0, 0, this.tw, this.th);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.buffers.pos[src]); gl.uniform1i(S.u.uPos, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.buffers.vel[src]); gl.uniform1i(S.u.uVel, 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.buffers.tgt); gl.uniform1i(S.u.uTgt, 2);
+    gl.uniform1f(S.u.uDt, dt);
+    gl.uniform1f(S.u.uTime, this.time);
+    gl.uniform1f(S.u.uSpring, P.spring * (1 + this.formPulse * 1.5));
+    gl.uniform1f(S.u.uDamp, P.damp);
+    gl.uniform1f(S.u.uNoiseAmp, P.noiseAmp * (1 + this.formPulse * 2.2));
+    gl.uniform1f(S.u.uNoiseScale, P.noiseScale);
+    gl.uniform1f(S.u.uFlowSpeed, P.flowSpeed);
+    gl.uniform1f(S.u.uHome, P.home);
+    gl.uniform1f(S.u.uPointerActive, this.pointer.active);
+    gl.uniform1f(S.u.uPointerRadius, P.pointerRadius);
+    gl.uniform1f(S.u.uPointerPush, P.pointerPush);
+    gl.uniform1f(S.u.uPointerSwirl, P.pointerSwirl);
+    gl.uniform1f(S.u.uAspect, this.width / this.height);
+    gl.uniform2f(S.u.uPointer, this.pointer.x, this.pointer.y);
+    gl.uniform3fv(S.u.uCamRight, this.camRight);
+    gl.uniform3fv(S.u.uCamUp, this.camUp);
+    gl.uniformMatrix4fv(S.u.uViewProj, false, this.viewProj);
+    if (this.atlas) {
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, this.phiTex[this.phiCur]);
+      gl.uniform1i(S.u.uPhi, 3);
+      gl.uniform1f(S.u.uGravity, gravityOn ? 1 : 0);
+      gl.uniform1f(S.u.uBoxL, P.boxL);
+      gl.uniform1f(S.u.uForceClamp, P.forceClamp);
+      gl.uniform1f(S.u.uKickSigma, this._kick ? this._kick.sigma : 0);
+      gl.uniform1f(S.u.uKickSpin, this._kick ? this._kick.spin : 0);
+    }
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this._kick = null;
+    this.cur = dst;
+
+    /* 2. points -> scene */
+    var R = this.progPoints;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.scene);
+    gl.viewport(0, 0, this.width, this.height);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.useProgram(R.p);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.buffers.pos[this.cur]); gl.uniform1i(R.u.uPos, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.buffers.vel[this.cur]); gl.uniform1i(R.u.uVel, 1);
+    gl.uniformMatrix4fv(R.u.uViewProj, false, this.viewProj);
+    gl.uniform2i(R.u.uTexSize, this.tw, this.th);
+    // Fewer particles are drawn larger so the field keeps roughly the same
+    // screen coverage — and therefore the same exposure — at every tier.
+    var sizeFactor = Math.pow(1048576 / Math.max(this.count, 1024), 0.40);
+    gl.uniform1f(R.u.uPointScale, P.pointScale * sizeFactor * (this.height / 900));
+    gl.uniform1f(R.u.uSizeMin, Math.min(1.0, this.pointMax));
+    gl.uniform1f(R.u.uSizeMax, this.pointMax);
+    gl.uniform1f(R.u.uBrightness, P.brightness);
+    gl.drawArrays(gl.POINTS, 0, this.count);
+    gl.disable(gl.BLEND);
+
+    /* 2b. average brightness -> 1x1, smoothed over time */
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindTexture(gl.TEXTURE_2D, this.sceneTex);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    var L = this.progLum, lsrc = this.lumCur, ldst = 1 - this.lumCur;
+    gl.useProgram(L.p);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.lumFB[ldst]);
+    gl.viewport(0, 0, 1, 1);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.sceneTex); gl.uniform1i(L.u.uScene, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.lumTex[lsrc]); gl.uniform1i(L.u.uPrev, 1);
+    gl.uniform1f(L.u.uRate, P.autoRate);
+    gl.uniform1f(L.u.uLod, this.sceneLod);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.lumCur = ldst;
+
+    /* 3. bloom */
+    var B = this.progBright;
+    gl.useProgram(B.p);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomA);
+    gl.viewport(0, 0, this.bw, this.bh);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.sceneTex); gl.uniform1i(B.u.uSrc, 0);
+    gl.uniform1f(B.u.uThreshold, P.bloomThreshold);
+    gl.uniform1f(B.u.uIntensity, 1.0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    var BL = this.progBlur;
+    gl.useProgram(BL.p);
+    for (var pass = 0; pass < 2; pass++) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomB);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.bloomTexA); gl.uniform1i(BL.u.uSrc, 0);
+      gl.uniform2f(BL.u.uStep, 1.3 / this.bw, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomA);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.bloomTexB); gl.uniform1i(BL.u.uSrc, 0);
+      gl.uniform2f(BL.u.uStep, 0, 1.3 / this.bh);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    /* 4. composite */
+    var C = this.progComp;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, this.width, this.height);
+    gl.useProgram(C.p);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.sceneTex); gl.uniform1i(C.u.uScene, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.bloomTexA); gl.uniform1i(C.u.uBloom, 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.lumTex[this.lumCur]); gl.uniform1i(C.u.uLum, 2);
+    gl.uniform1f(C.u.uAuto, P.auto);
+    gl.uniform1f(C.u.uAutoTarget, P.autoTarget);
+    gl.uniform1f(C.u.uAutoMin, P.autoMin);
+    gl.uniform1f(C.u.uAutoMax, P.autoMax);
+    gl.uniform1f(C.u.uBloomAmount, P.bloomAmount);
+    gl.uniform1f(C.u.uExposure, P.exposure);
+    gl.uniform1f(C.u.uTime, this.time);
+    gl.uniform1f(C.u.uGrain, P.grain);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    gl.bindVertexArray(null);
+  };
+
+  Engine.prototype.dispose = function () {
+    this.canvas.removeEventListener('webglcontextlost', this._onLost);
+    this.canvas.removeEventListener('webglcontextrestored', this._onRestored);
+    this._freeBuffers();
+  };
+
+  /* float32 -> float16 for GPUs without EXT_color_buffer_float */
+  var f32 = new Float32Array(1), i32 = new Int32Array(f32.buffer);
+  function halfOf(v) {
+    f32[0] = v;
+    var x = i32[0];
+    var bits = (x >> 16) & 0x8000;
+    var m = (x >> 12) & 0x07FF;
+    var e = (x >> 23) & 0xFF;
+    if (e < 103) return bits;
+    if (e > 142) return bits | 0x7C00;
+    if (e < 113) {
+      m |= 0x0800;
+      return bits | ((m >> (114 - e)) + ((m >> (113 - e)) & 1));
+    }
+    bits |= ((e - 112) << 10) | (m >> 1);
+    bits += m & 1;
+    return bits;
+  }
+  function toHalf(arr) {
+    var out = new Uint16Array(arr.length);
+    for (var i = 0; i < arr.length; i++) out[i] = halfOf(arr[i]);
+    return out;
+  }
+
+  root.HotaruEngine = Engine;
+})(globalThis);
+</script>
+<script>
+/* Hotaru — page glue. Owns the canvas lifecycle, turns typed text into a point
+   cloud, switches scenes, forwards the pointer, and keeps the frame rate
+   honest by dropping the particle count when the device cannot keep up. */
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var SHAPES = [
+    { key: 'free',      label: '蛍' },
+    { key: 'sphere',    label: '球' },
+    { key: 'galaxy',    label: '銀河' },
+    { key: 'torusKnot', label: '結び目' },
+    { key: 'wave',      label: '波' },
+    { key: 'ring',      label: '環' },
+    { key: 'heart',     label: 'ハート' },
+    { key: 'helix',     label: '螺旋' }
+  ];
+
+  /* brightness is per-particle and additive, so it tracks how tightly the scene
+     packs its points: a flat glyph concentrates every particle into a fraction
+     of the screen and needs far less of it than a cloud filling the frame. */
+  var PRESET = {
+    free: {
+      spring: 1.00, damp: 0.952, noiseAmp: 0.62, noiseScale: 1.05, flowSpeed: 0.070,
+      spinSpeed: 0.042, pointScale: 7.6, brightness: 0.175, bloomAmount: 0.60, bloomThreshold: 0.44,
+      exposure: 1.26, dist: 3.90, tilt: 0.16, pointerRadius: 0.44, pointerPush: 24, pointerSwirl: 17
+    },
+    /* spring and damp are a mass-spring pair: damp is applied as pow(damp, dt*60),
+       so the continuous damping is c = -60*ln(damp). Critical damping is
+       c = 2*sqrt(spring), and these are tuned to sit just at it — overdamped and
+       the shape stays a smear for seconds, underdamped and it wobbles. */
+    shape: {
+      spring: 10.0, damp: 0.900, noiseAmp: 0.15, noiseScale: 1.95, flowSpeed: 0.135,
+      spinSpeed: 0.075, pointScale: 6.8, brightness: 0.075, bloomAmount: 0.62, bloomThreshold: 0.52,
+      exposure: 1.20, dist: 2.50, tilt: 0.18, pointerRadius: 0.40, pointerPush: 28, pointerSwirl: 18
+    },
+    text: {
+      spring: 18.0, damp: 0.872, noiseAmp: 0.055, noiseScale: 2.7, flowSpeed: 0.17,
+      spinSpeed: 0.0, pointScale: 4.8, brightness: 0.100, bloomAmount: 0.58, bloomThreshold: 0.34,
+      exposure: 1.14, dist: 2.60, tilt: 0.0, pointerRadius: 0.36, pointerPush: 30, pointerSwirl: 20
+    },
+    /* Released. Nothing holds the shape any more: the spring is off, damping is
+       almost absent so the dynamics are the simulation's rather than a brake's,
+       and the pointer becomes an attractor instead of a repulsor. */
+    /* GM is set from the free-fall time: a sphere of radius 1 measured a
+       collapse in 8s at GM = 0.056, against 6.2s predicted, so the constant is
+       right and the pacing is deliberate. noiseAmp MUST stay at zero here: with
+       damping this light, a continuous random force is a heat source and the
+       cloud evaporates instead of falling. The spin is about two thirds of the
+       circular velocity, which flattens the remnant into a disc. */
+    gravity: {
+      spring: 0, damp: 0.9985, noiseAmp: 0.0, noiseScale: 2.2, flowSpeed: 0.05,
+      spinSpeed: 0.050, pointScale: 6.0, brightness: 0.075, bloomAmount: 0.72, bloomThreshold: 0.52,
+      exposure: 1.22, dist: 3.60, tilt: 0.22, pointerRadius: 0.50, pointerPush: -14, pointerSwirl: 6,
+      gravity: 1, GM: 0.056, forceClamp: 6.0, relax: 14
+    }
+  };
+  for (var _k in PRESET) if (PRESET[_k].gravity === undefined) PRESET[_k].gravity = 0;
+
+  /* Each shape packs its points differently — a thin knot lights a few thousand
+     pixels, a galaxy bulge lights a few hundred — so exposure and the viewing
+     angle are set per shape rather than shared. */
+  var SHAPE_TWEAK = {
+    sphere:    { brightness: 0.070, tilt: 0.20 },
+    galaxy:    { brightness: 0.042, tilt: 0.46, bloomThreshold: 0.52, dist: 2.35, noiseAmp: 0.075 },
+    torusKnot: { brightness: 0.105, tilt: 0.26, noiseAmp: 0.10 },
+    wave:      { brightness: 0.085, tilt: 0.56, dist: 2.30, noiseAmp: 0.09 },
+    ring:      { brightness: 0.072, tilt: 0.52, dist: 2.35, noiseAmp: 0.08 },
+    heart:     { brightness: 0.070, tilt: 0.10, dist: 2.45, noiseAmp: 0.10 },
+    helix:     { brightness: 0.110, tilt: 0.12, dist: 2.40, noiseAmp: 0.09 }
+  };
+
+  var FOV = 0.85;
+
+  var TIERS = [1048576, 524288, 262144, 131072, 65536];
+
+  var engine = null;
+  var mode = 'free';
+  var scene = 'free';
+  var word = '';
+  var tier = 0;
+  var probeAt = 0;
+  var drops = 0;
+  var last = 0;
+  var running = true;
+  var burstUntil = 0;
+  var finePointer = false;
+
+  /* ── deterministic rng ─────────────────────────────────────────────── */
+
+  function rng(seed) {
+    return function () {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* A drifting ball of embers: the resting state, and the shape the name means. */
+  function cloud(n, seed) {
+    var out = new Float32Array(n * 3);
+    var r = rng(seed || 7);
+    for (var i = 0; i < n; i++) {
+      var u = r() * 2 - 1, phi = r() * Math.PI * 2;
+      var rad = 0.35 + Math.pow(r(), 0.62) * 0.92;
+      var s = Math.sqrt(Math.max(0, 1 - u * u));
+      out[i * 3]     = rad * s * Math.cos(phi);
+      out[i * 3 + 1] = rad * u * 0.78;
+      out[i * 3 + 2] = rad * s * Math.sin(phi);
+    }
+    return out;
+  }
+
+  /* ── text -> point cloud ───────────────────────────────────────────── */
+
+  var FONT = '700 %spx "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", ' +
+    'system-ui, -apple-system, sans-serif';
+
+  function rasterize(text) {
+    var size = 200;
+    var probe = document.createElement('canvas').getContext('2d');
+    probe.font = FONT.replace('%s', size);
+    var m = probe.measureText(text);
+    var wRaw = Math.max(1, m.width);
+    var ascent = m.actualBoundingBoxAscent || size * 0.82;
+    var descent = m.actualBoundingBoxDescent || size * 0.22;
+    var hRaw = Math.max(1, ascent + descent);
+
+    // Keep the mask under a sane pixel budget however wide the word is.
+    var MAXW = 1600, MAXH = 520;
+    var k = Math.min(MAXW / (wRaw + size * 0.3), MAXH / (hRaw + size * 0.3), 1);
+    size = Math.max(48, Math.floor(size * k));
+
+    var ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    ctx.font = FONT.replace('%s', size);
+    m = ctx.measureText(text);
+    ascent = m.actualBoundingBoxAscent || size * 0.82;
+    descent = m.actualBoundingBoxDescent || size * 0.22;
+    var pad = Math.round(size * 0.14);
+    var w = Math.max(2, Math.ceil(m.width) + pad * 2);
+    var h = Math.max(2, Math.ceil(ascent + descent) + pad * 2);
+
+    ctx.canvas.width = w;
+    ctx.canvas.height = h;
+    ctx.font = FONT.replace('%s', size);
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(text, pad, pad + ascent);
+
+    var px = ctx.getImageData(0, 0, w, h).data;
+    var alpha = new Uint8Array(w * h);
+    for (var i = 0, n = w * h; i < n; i++) alpha[i] = px[i * 4 + 3];
+    return { alpha: alpha, w: w, h: h };
+  }
+
+  /* The sampler maps the glyph box into [-fit, fit] on its longer axis, so the
+     right fit depends on the viewport: the same word has to be much smaller on
+     a tall phone than on a wide laptop to stay on screen. */
+  function fitForMask(mw, mh) {
+    var c = $('stage');
+    var aspect = Math.max(c.clientWidth, 1) / Math.max(c.clientHeight, 1);
+    var halfH = PRESET.text.dist * Math.tan(FOV / 2);
+    var halfW = halfH * aspect;
+    var rx = mw >= mh ? 1 : mw / mh;
+    var ry = mw >= mh ? mh / mw : 1;
+    return Math.max(0.2, Math.min(0.88 * halfW / rx, 0.80 * halfH / ry));
+  }
+
+  function textTargets(text, count) {
+    if (!globalThis.HotaruMask || typeof HotaruMask.sampleMask !== 'function') return null;
+    var r = rasterize(text);
+    var lit = 0;
+    for (var i = 0; i < r.alpha.length; i++) if (r.alpha[i] > 16) lit++;
+    if (!lit) return null;
+    return HotaruMask.sampleMask(r.alpha, r.w, r.h, count, {
+      seed: 0x3C5A11, threshold: 16, fit: fitForMask(r.w, r.h), jitter: 0.55, depth: 0.018
+    });
+  }
+
+  /* ── scenes ────────────────────────────────────────────────────────── */
+
+  /* A portrait phone sees a far narrower slice of the world than a laptop, so
+     the camera is pushed back until the field fits the *tighter* of the two
+     axes. Without this the cloud spills off both sides and reads as flat noise. */
+  function frameDistance(base, radius) {
+    var c = $('stage');
+    var aspect = Math.max(c.clientWidth, 1) / Math.max(c.clientHeight, 1);
+    var t = Math.tan(FOV / 2);
+    return Math.max(base, radius / (0.86 * t), radius / (0.86 * t * aspect));
+  }
+
+  function applyPreset(name, tweak, radius) {
+    var p = PRESET[name], k;
+    for (k in p) if (Object.prototype.hasOwnProperty.call(p, k)) engine.params[k] = p[k];
+    if (tweak) for (k in tweak) if (Object.prototype.hasOwnProperty.call(tweak, k)) engine.params[k] = tweak[k];
+    if (radius) engine.params.dist = frameDistance(engine.params.dist, radius);
+  }
+
+  /* The heart costs ~0.5s for a million points, so hold on to the last two
+     buffers rather than rebuilding on every trip back to a shape. */
+  var cacheKeys = [], cacheVals = [];
+  function shapeTargets(key, count) {
+    var ck = key + ':' + count;
+    var hit = cacheKeys.indexOf(ck);
+    if (hit > -1) return cacheVals[hit];
+    var out;
+    var S = globalThis.HotaruShapes;
+    if (key === 'free') out = cloud(count, 7);
+    else if (S && typeof S[key] === 'function') {
+      try { out = S[key](count, { seed: 0x5EED }); } catch (e) { out = cloud(count, 11); }
+    } else out = cloud(count, 11);
+    cacheKeys.unshift(ck); cacheVals.unshift(out);
+    cacheKeys.length = Math.min(cacheKeys.length, 2);
+    cacheVals.length = Math.min(cacheVals.length, 2);
+    return out;
+  }
+
+  function sceneRadius(key) { return key === 'free' ? 1.30 : 1.02; }
+
+  function setScene(key) {
+    scene = key;
+    word = '';
+    $('word').value = '';
+    mode = 'free';
+    applyPreset(key === 'free' ? 'free' : 'shape', SHAPE_TWEAK[key], sceneRadius(key));
+    engine.setTargets(shapeTargets(key, engine.count));
+    paintChips();
+  }
+
+  function setWord(text) {
+    word = text;
+    if (!text) { setScene(scene); return; }
+    var pts = textTargets(text, engine.count);
+    if (!pts) { setScene(scene); return; }
+    mode = 'text';
+    applyPreset('text');
+    engine.setTargets(pts);
+    paintChips();
+  }
+
+  function refreshTargets() {
+    if (mode === 'text' && word) {
+      var pts = textTargets(word, engine.count);
+      if (pts) { engine.setTargets(pts); return; }
+    }
+    engine.setTargets(shapeTargets(scene, engine.count));
+  }
+
+  function paintChips() {
+    var host = $('chips');
+    var bs = host.querySelectorAll('button');
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].setAttribute('aria-pressed',
+        String(mode === 'free' && bs[i].getAttribute('data-key') === scene));
+    }
+    var rel = $('release');
+    if (!engine || !engine.hasGravity()) { rel.hidden = true; return; }
+    rel.hidden = false;
+    rel.textContent = mode === 'gravity' ? '戻す' : '放つ';
+    rel.className = mode === 'gravity' ? 'release on' : 'release';
+  }
+
+  /* ── release ───────────────────────────────────────────────────────── */
+
+  var releasedAt = 0;
+  var gravSampleAt = 0;
+  var distTarget = 0;
+
+  function release() {
+    if (!engine.hasGravity()) return;
+    prevMode = mode; prevWord = word;
+    mode = 'gravity';
+    applyPreset('gravity', null, 1.55);
+    // A little random dispersion so the cloud fragments into filaments instead
+    // of falling into one ball, and a little spin so the remnant forms a disc.
+    engine.setGravity(true, { sigma: 0.050, spin: 0.160 });
+    releasedAt = performance.now();
+    gravSampleAt = 0;
+    distTarget = 0;
+    paintChips();
+  }
+
+  function unrelease() {
+    engine.setGravity(false);
+    mode = 'free';
+    releasedAt = 0;
+    if (prevMode === 'text' && prevWord) { $('word').value = prevWord; setWord(prevWord); }
+    else setScene(scene);
+    paintChips();
+  }
+
+  var prevMode = 'free', prevWord = '';
+
+  /* ── hud ───────────────────────────────────────────────────────────── */
+
+  var hudAt = 0;
+  function hud(t) {
+    if (t - hudAt < 400) return;
+    hudAt = t;
+    var extra = mode === 'gravity'
+      ? '<br>重力 ' + ((t - releasedAt) / 1000).toFixed(0) + ' 秒'
+      : '';
+    $('hud').innerHTML =
+      '<b>' + engine.count.toLocaleString('ja-JP') + '</b> 粒<br>' +
+      Math.round(engine.fps) + ' fps' + extra;
+  }
+
+  /* ── pointer ───────────────────────────────────────────────────────── */
+
+  function ndc(e) {
+    var c = $('stage');
+    var r = c.getBoundingClientRect();
+    return [
+      ((e.clientX - r.left) / Math.max(r.width, 1)) * 2 - 1,
+      -(((e.clientY - r.top) / Math.max(r.height, 1)) * 2 - 1)
+    ];
+  }
+
+  function bindPointer() {
+    var c = $('stage');
+    var down = false;
+
+    c.addEventListener('pointerdown', function (e) {
+      down = true;
+      if (c.setPointerCapture) { try { c.setPointerCapture(e.pointerId); } catch (err) {} }
+      var p = ndc(e);
+      engine.setPointer(p[0], p[1], 1);
+      finePointer = e.pointerType === 'mouse';
+    });
+
+    c.addEventListener('pointermove', function (e) {
+      var p = ndc(e);
+      if (down) engine.setPointer(p[0], p[1], 1);
+      else if (e.pointerType === 'mouse') engine.setPointer(p[0], p[1], 0.32);
+    });
+
+    var release = function () { down = false; engine.setPointer(engine.pointer.x, engine.pointer.y, 0); };
+    c.addEventListener('pointerup', release);
+    c.addEventListener('pointercancel', release);
+    c.addEventListener('pointerleave', function (e) { if (!down) release(); });
+
+    c.addEventListener('dblclick', function (e) {
+      var p = ndc(e);
+      engine.setPointer(p[0], p[1], 3.2);
+      burstUntil = performance.now() + 220;
+    });
+  }
+
+  /* ── loop ──────────────────────────────────────────────────────────── */
+
+  function tick(t) {
+    requestAnimationFrame(tick);
+    if (!running || !engine) return;
+    var dt = last ? t - last : 16;
+    last = t;
+
+    if (burstUntil && t > burstUntil) { burstUntil = 0; engine.setPointer(engine.pointer.x, engine.pointer.y, 0); }
+
+    /* Follow the collapse. The cloud shrinks by a factor of five on its way
+       in, so a fixed camera either clips it at the start or loses it at the
+       end. Radius comes from a small readback twice a second. */
+    if (mode === 'gravity') {
+      if (t - gravSampleAt > 500) {
+        gravSampleAt = t;
+        try {
+          var rad = engine.sampleRadius(32);
+          if (isFinite(rad.rms) && rad.rms > 0) {
+            distTarget = frameDistance(1.85, Math.max(0.3, rad.rms * 2.0));
+          }
+        } catch (err) { distTarget = 0; }
+      }
+      if (distTarget) {
+        engine.params.dist += (distTarget - engine.params.dist) * Math.min(1, dt / 1000 * 0.7);
+      }
+    }
+
+    if (mode === 'text') {
+      // Bring the field face-on so the word stays readable.
+      var s = engine.spin % (Math.PI * 2);
+      if (s > Math.PI) s -= Math.PI * 2;
+      if (s < -Math.PI) s += Math.PI * 2;
+      engine.spin -= s * Math.min(1, dt / 1000 * 3.2);
+    }
+
+    engine.resize();
+    engine.frame(dt);
+    hud(t);
+
+    // Give the GPU a few seconds, then step down if it is clearly struggling.
+    if (!probeAt) probeAt = t + 3000;
+    else if (t > probeAt && drops < 3 && mode !== 'gravity') {
+      if (engine.fps < 40 && tier < TIERS.length - 1) {
+        tier++; drops++;
+        engine.setCount(TIERS[tier]);
+        refreshTargets();
+      }
+      probeAt = t + 2600;
+    }
+  }
+
+  /* ── boot ──────────────────────────────────────────────────────────── */
+
+  function fail(err) {
+    $('fail').hidden = false;
+    $('fail-msg').textContent = /WebGL2/.test(err.message)
+      ? 'この端末またはブラウザが WebGL2 に対応していないようです。'
+      : '描画の初期化に失敗しました。';
+    $('fail-detail').textContent = err.message;
+  }
+
+  function buildChips() {
+    var host = $('chips');
+    var S = globalThis.HotaruShapes;
+    var html = '';
+    for (var i = 0; i < SHAPES.length; i++) {
+      var s = SHAPES[i];
+      if (s.key !== 'free' && !(S && typeof S[s.key] === 'function')) continue;
+      html += '<button type="button" data-key="' + s.key + '" aria-pressed="' +
+        (s.key === scene) + '">' + s.label + '</button>';
+    }
+    host.innerHTML = html;
+    paintChips();
+    host.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('button[data-key]') : null;
+      if (b) setScene(b.getAttribute('data-key'));
+    });
+  }
+
+  function bindInput() {
+    var input = $('word');
+    var timer;
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      var v = input.value.trim();
+      timer = setTimeout(function () {
+        if (v) setWord(v); else setScene(scene);
+      }, 280);
+    });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        clearTimeout(timer);
+        var v = input.value.trim();
+        if (v) setWord(v);
+        input.blur();
+      }
+    });
+    $('release').addEventListener('click', function () {
+      if (mode === 'gravity') unrelease(); else release();
+    });
+    $('clear').addEventListener('click', function () {
+      input.value = '';
+      setScene(scene);
+      input.focus();
+    });
+  }
+
+  // ?n=65536 (or #n=65536) pins the particle count — used when driving the page
+  // from a test harness, and handy on a machine you want to go easy on.
+  function requestedCount() {
+    var m = /[?#&]n=(\d+)/.exec(location.search + location.hash);
+    if (!m) return 0;
+    var n = parseInt(m[1], 10);
+    return n >= 1024 && n <= TIERS[0] ? n : 0;
+  }
+
+  function start() {
+    var coarse = false;
+    try { coarse = window.matchMedia('(pointer: coarse)').matches; } catch (e) {}
+    var small = Math.min(window.innerWidth, window.innerHeight) < 620;
+    tier = (coarse || small) ? 2 : 0;
+
+    var pinned = requestedCount();
+    try {
+      engine = new HotaruEngine($('stage'), {
+        count: pinned || TIERS[tier],
+        // Only a harness needs to read the canvas back after a frame is presented.
+        preserveBuffer: /[?#&]grab=1/.test(location.search + location.hash)
+      });
+    } catch (err) {
+      fail(err);
+      return;
+    }
+    if (pinned) drops = 3;
+
+    globalThis.__hotaru = {
+      get engine() { return engine; },
+      get mode() { return mode; },
+      get scene() { return scene; },
+      setWord: setWord,
+      setScene: setScene
+    };
+
+    applyPreset('free', null, sceneRadius('free'));
+    engine.setTargets(shapeTargets('free', engine.count));
+
+    buildChips();
+    bindInput();
+    bindPointer();
+
+    document.addEventListener('visibilitychange', function () {
+      running = !document.hidden;
+      last = 0;
+    });
+
+    // How large a word can be drawn depends on the viewport, so re-cut it when
+    // the window changes shape (or a phone is turned on its side).
+    var resizeTimer;
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () {
+        if (mode === 'text' && word) setWord(word);
+        else applyPreset(scene === 'free' ? 'free' : 'shape', SHAPE_TWEAK[scene], sceneRadius(scene));
+      }, 260);
+    });
+
+    // Re-cut the glyphs once the real typeface has arrived.
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () { if (mode === 'text' && word) setWord(word); });
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>

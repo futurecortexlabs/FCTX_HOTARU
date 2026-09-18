@@ -1,0 +1,5 @@
+node_modules/
+docs/preview.html
+docs/shots/
+*.log
+.DS_Store

@@ -1,0 +1,321 @@
+<title>Hotaru</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@600;900&display=swap">
+<style>
+/* Hotaru commits to one visual world — a dark field at night. Every colour is
+   painted explicitly so the page holds whatever ground the host puts behind it. */
+:root {
+  color-scheme: dark;
+  --ink:    #04050A;
+  --ink-2:  #090B14;
+  --glass:  rgba(12, 15, 24, 0.62);
+  --edge:   rgba(255, 214, 150, 0.16);
+  --edge-2: rgba(255, 214, 150, 0.30);
+  --text:   #EDE4D6;
+  --text-2: rgba(237, 228, 214, 0.62);
+  --text-3: rgba(237, 228, 214, 0.34);
+  --amber:  #FFC15E;
+  --amber-2:#FF9E3D;
+  --jp: "Zen Kaku Gothic New", ui-sans-serif, system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --mincho: "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--jp);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: radial-gradient(120% 90% at 50% 45%, #0A0C16 0%, #04050A 70%);
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  gap: 12px;
+}
+.ui > * { min-width: 0; }
+
+/* ── wordmark ──────────────────────────────────────────────────────── */
+.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.mark { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.mark .kanji {
+  font-family: var(--mincho);
+  font-weight: 900;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--amber);
+  text-shadow: 0 0 22px rgba(255, 158, 61, 0.55), 0 0 60px rgba(255, 158, 61, 0.22);
+}
+.mark .name {
+  font-family: var(--mincho);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.34em;
+  color: var(--text-2);
+  text-transform: uppercase;
+}
+.mark .sub {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+/* The field behind the overlay can be bright, so every floating label carries
+   its own shadow rather than trusting the background to stay dark. */
+.mark .name, .mark .sub, .hud, .hint {
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.92), 0 0 3px rgba(0, 0, 0, 0.85);
+}
+
+.hud {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.hud b { font-weight: 400; color: var(--amber); }
+
+/* ── hint ──────────────────────────────────────────────────────────── */
+.hint {
+  align-self: end;
+  justify-self: center;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--text-2);
+  padding-bottom: 6px;
+  opacity: 0;
+  animation: hint 7.5s ease-in-out 1.2s forwards;
+}
+@keyframes hint {
+  0% { opacity: 0; transform: translateY(6px); }
+  14% { opacity: 1; transform: none; }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .hint { animation: none; opacity: 1; } }
+
+/* ── dock ──────────────────────────────────────────────────────────── */
+.dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.field {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: min(420px, 100%);
+  background: var(--glass);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  transition: border-color .2s, box-shadow .2s;
+}
+.field:focus-within {
+  border-color: var(--edge-2);
+  box-shadow: 0 0 0 3px rgba(255, 193, 94, 0.09), 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.field input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 6px 11px 20px;
+  border: 0;
+  background: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--jp);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+}
+.field input::placeholder { color: var(--text-3); letter-spacing: 0.1em; }
+.field button {
+  flex: none;
+  width: 34px; height: 34px;
+  margin-right: 5px;
+  border: 0; border-radius: 50%;
+  background: none;
+  color: var(--text-3);
+  font-size: 17px; line-height: 1;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.field button:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+
+/* The one verb on the page: stop holding the shape together and let the
+   particles pull on each other instead. */
+.release {
+  pointer-events: auto;
+  padding: 9px 26px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--amber), var(--amber-2));
+  color: #21160A;
+  font-family: var(--mincho);
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  cursor: pointer;
+  box-shadow: 0 0 26px rgba(255, 158, 61, 0.35), 0 6px 20px rgba(0, 0, 0, 0.45);
+  transition: transform .14s, box-shadow .2s, filter .2s;
+}
+.release:hover { filter: brightness(1.08); box-shadow: 0 0 34px rgba(255, 158, 61, 0.5), 0 6px 20px rgba(0, 0, 0, 0.45); }
+.release:active { transform: translateY(1px); }
+.release[hidden] { display: none !important; }
+.release.on {
+  background: none;
+  border: 1px solid var(--edge-2);
+  color: var(--text-2);
+  box-shadow: none;
+  font-weight: 400;
+}
+
+.chips {
+  pointer-events: auto;
+  display: flex;
+  gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 2px 2px 4px;
+  scrollbar-width: none;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chips button {
+  flex: none;
+  padding: 6px 14px;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text-2);
+  font-family: var(--jp);
+  font-size: 12.5px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.chips button:hover { color: var(--text); border-color: var(--edge-2); }
+.chips button[aria-pressed="true"] {
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--amber), var(--amber-2));
+  border-color: transparent;
+  font-weight: 700;
+}
+
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+
+/* ── failure card ──────────────────────────────────────────────────── */
+.fail {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 5, 10, 0.92);
+  pointer-events: auto;
+}
+.fail[hidden] { display: none !important; }
+.fail div {
+  max-width: 34em;
+  text-align: center;
+}
+.fail h2 {
+  margin: 0 0 10px;
+  font-family: var(--mincho);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--amber);
+}
+.fail p { margin: 0 0 6px; color: var(--text-2); font-size: 13.5px; }
+.fail code {
+  display: block;
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  word-break: break-word;
+}
+
+@media (max-width: 560px) {
+  .mark .kanji { font-size: 25px; }
+  .mark .name { font-size: 12.5px; letter-spacing: 0.26em; }
+  .mark .sub { display: none; }
+  .hud { font-size: 9.5px; }
+  .field input { font-size: 16px; }
+}
+</style>
+
+<canvas id="stage" aria-label="光の粒子で描かれる文字と形"></canvas>
+
+<div class="ui">
+  <div class="top">
+    <div class="mark">
+      <span class="kanji">蛍</span>
+      <span class="name">Hotaru</span>
+      <span class="sub">百万の光が言葉のかたちに集まり、放てば自らの重力で崩れる</span>
+    </div>
+    <div class="hud" id="hud"></div>
+  </div>
+
+  <div class="hint" id="hint">なぞると光が散り、「放つ」で重力に委ねられます</div>
+
+  <div class="dock">
+    <div class="field">
+      <input id="word" type="text" maxlength="14" placeholder="名前や言葉を入力"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+        aria-label="光で描く言葉">
+      <button id="clear" type="button" aria-label="消す">&times;</button>
+    </div>
+    <button class="release" id="release" type="button" hidden>放つ</button>
+    <div class="chips" id="chips" role="group" aria-label="かたちを選ぶ"></div>
+  </div>
+</div>
+
+<div class="fail" id="fail" hidden>
+  <div>
+    <h2>この画面では光を灯せません</h2>
+    <p id="fail-msg"></p>
+    <p>WebGL に対応した最新の Chrome、Safari、Firefox でお試しください。</p>
+    <code id="fail-detail"></code>
+  </div>
+</div>
+
+<script>
+/*__HOTARU_BUNDLE__*/
+</script>
+<script>
+/*__HOTARU_APP__*/
+</script>

@@ -1,0 +1,7 @@
+Hotaru
+Copyright 2026 FutureCortex Labs
+
+This product includes software developed at FutureCortex Labs.
+
+The 3D simplex noise in hotaru/noise.js is a transcription of the
+implementation by Stefan Gustavson and Ashima Arts (MIT licence).

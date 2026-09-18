@@ -1,0 +1,32 @@
+{
+  "name": "fctx-hotaru",
+  "version": "1.0.0",
+  "description": "A million GPU particles that form typed text, then collapse under their own self-gravity. WebGL2, no dependencies, one HTML file.",
+  "license": "Apache-2.0",
+  "author": "FutureCortex Labs",
+  "private": false,
+  "keywords": [
+    "webgl2",
+    "gpgpu",
+    "particles",
+    "n-body",
+    "particle-mesh",
+    "poisson",
+    "gravity",
+    "visualisation"
+  ],
+  "main": "build-hotaru.js",
+  "scripts": {
+    "build": "node build-hotaru.js",
+    "test": "node test/noise.test.js && node test/shapes.test.js && node test/mask.test.js && node test/atlas.test.js && node test/pm.test.js",
+    "test:fast": "node test/noise.test.js && node test/shapes.test.js && node test/mask.test.js && node test/atlas.test.js",
+    "verify": "node tools/verify-hotaru.js --gpu --n=1048576",
+    "probe:gravity": "node tools/probe-gravity.js --gm=0.056 --n=262144 --t=12"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
