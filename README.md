@@ -58,14 +58,14 @@ Released twice, the same word never lands the same way. It is a simulation, not 
 
 **オンライン** — [futurecortexlabs.github.io/FCTX_HOTARU](https://futurecortexlabs.github.io/FCTX_HOTARU/)
 
-**手元で** — clone して `docs/index.html` をブラウザで開くだけ。サーバもインストールも不要です。
+**手元で** — clone して `index.html` をブラウザで開くだけ。サーバもインストールも不要です。
 
-**Online** — the link above. **Offline** — clone and open `docs/index.html`. There is no server and no install step.
+**Online** — the link above. **Offline** — clone and open `index.html`. There is no server and no install step.
 
 **ソースから / From source**
 
 ```bash
-node build-hotaru.js    # 5モジュール + シェル + グルー / 5 modules + shell + glue -> docs/index.html
+node build-hotaru.js    # 5モジュール + シェル + グルー / 5 modules + shell + glue -> index.html
 npm test                # 5,335 件のテスト / 5,335 checks
 ```
 

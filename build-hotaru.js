@@ -46,7 +46,7 @@ const out = shell
   .replace('/*__HOTARU_APP__*/', () => guard(app.trim()));
 
 fs.mkdirSync(path.join(ROOT, 'docs'), { recursive: true });
-const dest = path.join(ROOT, 'docs', 'index.html');
+const dest = path.join(ROOT, 'index.html');
 fs.writeFileSync(dest, out, 'utf8');
 
 /* The published page is wrapped by the Artifact skeleton, which supplies the
@@ -76,4 +76,4 @@ for (const m of MODULES) {
 }
 console.log('  ' + 'web/hotaru-app.js'.padEnd(20) + String(app.split('\n').length).padStart(6) + ' lines');
 if (missing.length) console.log('\nPARTIAL BUILD — still missing: ' + missing.map((m) => m.file).join(', '));
-console.log('\nbuilt docs/index.html  ' + kb(Buffer.byteLength(out)) + '  (modules ' + kb(bytes) + ')');
+console.log('\nbuilt index.html  ' + kb(Buffer.byteLength(out)) + '  (modules ' + kb(bytes) + ')');
