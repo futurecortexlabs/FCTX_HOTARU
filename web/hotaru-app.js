@@ -53,7 +53,7 @@
       spring: 0, damp: 0.9985, noiseAmp: 0.0, noiseScale: 2.2, flowSpeed: 0.05,
       spinSpeed: 0.050, pointScale: 6.0, brightness: 0.075, bloomAmount: 0.72, bloomThreshold: 0.52,
       exposure: 1.22, dist: 3.60, tilt: 0.22, pointerRadius: 0.50, pointerPush: -14, pointerSwirl: 6,
-      gravity: 1, GM: 0.056, forceClamp: 6.0, relax: 14
+      gravity: 1, GM: 0.056, forceClamp: 6.0, relax: 24
     }
   };
   for (var _k in PRESET) if (PRESET[_k].gravity === undefined) PRESET[_k].gravity = 0;

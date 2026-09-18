@@ -3310,7 +3310,7 @@ atlas.glsl + '\n' +
       auto: 1, autoTarget: 0.055, autoMin: 0.10, autoMax: 4.0, autoRate: 0.035,
       // Self-gravity. GM is G times the total mass of the cloud, so the physics
       // does not change when the particle count drops to a lower tier.
-      gravity: 0, GM: 1.6, boxL: 5.0, relax: 14, forceClamp: 24.0,
+      gravity: 0, GM: 1.6, boxL: 5.0, relax: 24, forceClamp: 24.0,
       gravDamp: 0.9995
     };
     this.formPulse = 0;
@@ -3848,7 +3848,7 @@ atlas.glsl + '\n' +
       spring: 0, damp: 0.9985, noiseAmp: 0.0, noiseScale: 2.2, flowSpeed: 0.05,
       spinSpeed: 0.050, pointScale: 6.0, brightness: 0.075, bloomAmount: 0.72, bloomThreshold: 0.52,
       exposure: 1.22, dist: 3.60, tilt: 0.22, pointerRadius: 0.50, pointerPush: -14, pointerSwirl: 6,
-      gravity: 1, GM: 0.056, forceClamp: 6.0, relax: 14
+      gravity: 1, GM: 0.056, forceClamp: 6.0, relax: 24
     }
   };
   for (var _k in PRESET) if (PRESET[_k].gravity === undefined) PRESET[_k].gravity = 0;

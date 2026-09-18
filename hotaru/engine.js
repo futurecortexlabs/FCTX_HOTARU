@@ -539,7 +539,7 @@ atlas.glsl + '\n' +
       auto: 1, autoTarget: 0.055, autoMin: 0.10, autoMax: 4.0, autoRate: 0.035,
       // Self-gravity. GM is G times the total mass of the cloud, so the physics
       // does not change when the particle count drops to a lower tier.
-      gravity: 0, GM: 1.6, boxL: 5.0, relax: 14, forceClamp: 24.0,
+      gravity: 0, GM: 1.6, boxL: 5.0, relax: 24, forceClamp: 24.0,
       gravDamp: 0.9995
     };
     this.formPulse = 0;

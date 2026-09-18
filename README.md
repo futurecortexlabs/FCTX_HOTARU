@@ -1,201 +1,245 @@
-# 蛍 — Hotaru
+<h1 align="center">蛍 &nbsp;Hotaru</h1>
 
-百万個の光の粒が、打ち込んだ言葉のかたちに集まる。
-**「放つ」**と粒は互いに引き合いはじめ、言葉は自らの重力で崩れ、フィラメントを経て回転円盤になる。
+<p align="center">
+  A million particles become the word you type — then collapse under their own gravity.
+</p>
 
-依存ライブラリはゼロ。WebGL2 だけで書かれた、自己完結した HTML 1ファイルです。
+<p align="center">
+  <a href="https://futurecortexlabs.github.io/FCTX_HOTARU/"><b>▶ Live demo</b></a>
+  &nbsp;·&nbsp;
+  <a href="README.ja.md">日本語</a>
+  &nbsp;·&nbsp;
+  <a href="#the-gravity-is-real">The physics</a>
+</p>
 
-> **English** — A million GPU particles assemble into whatever you type, then collapse under their
-> own self-gravity into filaments and a rotating disc. The gravity is a real Particle-Mesh N-body
-> solver — mass deposition, a Poisson solve by Chebyshev-accelerated relaxation, and a force
-> gradient — evaluated every frame on the GPU. No three.js, no dependencies, one HTML file.
+<p align="center">
+  <img src="docs/media/collapse.gif" width="720" alt="The word HOTARU, written in a million particles, collapsing under self-gravity into filaments and a rotating disc">
+</p>
+
+<p align="center">
+  <sub>Nothing here is keyframed. The spring holding the letters together is switched off and
+  self-gravity switched on; 15 seconds of simulation, played at 2×.</sub>
+</p>
 
 ---
 
-## 動かす
+## What it is
 
-```
-docs/index.html をブラウザで開くだけ。サーバは要りません。
-```
+**One HTML file.** No dependencies, no bundler, no three.js. Open it and it runs.
 
-GitHub Pages で公開する場合は **Settings → Pages → Deploy from a branch → `main` / `/docs`**。
+- **Type anything** — a million GPU particles fly into that shape. Latin, Japanese, kanji, emoji.
+- **Drag across the field** — they scatter, swirl, and settle back.
+- **Press 放つ (Release)** — the spring is cut and the particles begin pulling on *each other*.
+  The word sags under its own weight, fragments into gravitationally bound clumps, draws
+  filaments between them, and settles into a rotating disc.
+- **Seven procedural shapes** — sphere, galaxy, torus knot, wave, ring, heart, double helix.
 
-ソースから組み直す場合:
+Released twice, the same word never lands the same way. It is a simulation, not a playback.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/media/text-ja.png" alt="Japanese kana rendered in particles"></td>
+<td width="50%"><img src="docs/media/galaxy.png" alt="A procedural spiral galaxy"></td>
+</tr>
+<tr>
+<td><img src="docs/media/idle.png" alt="The resting state: a drifting cloud of embers"></td>
+<td align="center"><img src="docs/media/mobile.png" width="240" alt="Running on a phone"></td>
+</tr>
+</table>
+
+---
+
+## Try it
+
+**Online** — [futurecortexlabs.github.io/FCTX_HOTARU](https://futurecortexlabs.github.io/FCTX_HOTARU/)
+
+**Offline** — clone and open `docs/index.html`. There is no server and no install step.
+
+**From source**
 
 ```bash
-node build-hotaru.js     # 6 モジュール + シェル + グルー → docs/index.html
-npm test                 # 5,335 件のテスト
+node build-hotaru.js    # six modules + shell + glue  ->  docs/index.html
+npm test                # 5,335 checks
 ```
 
-必要なのは Node だけです（検証ツールのみ `puppeteer-core` を使います）。
+Node is the only requirement. `puppeteer-core` is a dev dependency used solely by the
+verification harness, which drives your installed Chrome.
+
+Append `?n=65536` to the URL to pin the particle count on a modest machine.
 
 ---
 
-## 使い方
+## How it works
 
-| 操作 | 起きること |
-|---|---|
-| 名前や言葉を入力 | 粒子がその文字のかたちへ一斉に飛ぶ |
-| 画面をドラッグ | 粒子が散って渦を巻き、また戻る |
-| **放つ** | バネが切れ、粒子が互いに引き合いはじめる |
-| 放った後にドラッグ | 指が「動く重力井戸」になる |
-| 形のボタン | 球・銀河・結び目・波・環・ハート・螺旋 |
+Every frame, on the GPU:
 
-日本語・漢字・絵文字も入ります。
+```
+position / velocity textures  (RGBA32F, 1024x1024)
+        |
+        +- 1. deposit ---- a million particles drawn additively into a 64^3 grid,
+        |                  held as z-slice tiles in one 512x512 texture
+        +- 2. solve ------ grad^2 phi = 4 pi G rho, 24 Chebyshev-accelerated passes,
+        |                  warm-started from the previous frame
+        +- 3. force ------ -grad(phi) sampled back trilinearly to each particle
+        |
+        +- 4. integrate -- one fragment shader writes position AND velocity
+        |                  through multiple render targets
+        +- 5. draw ------- gl.POINTS pulled by gl_VertexID; no vertex buffer exists
+        +- 6. post ------- auto-exposure -> bright pass -> separable blur -> ACES
+```
+
+There is no particle array and no vertex buffer. The whole field is one
+`drawArrays(POINTS, 0, 1048576)` call whose vertex shader fetches its own particle from a
+texture by `gl_VertexID`.
+
+Exposure is automatic: the scene's mipmap chain is reduced to a single texel, smoothed over
+time in a 1×1 buffer, and applied as gain at composite. A simulation whose density changes by
+two orders of magnitude cannot be exposed by hand.
 
 ---
 
-## パイプライン
+## The gravity is real
 
-毎フレーム、以下が GPU 上で走ります。
+A direct million-body sum is 10¹² interactions per frame. Instead this uses the
+**Particle-Mesh** method — the same approach cosmological N-body codes use.
 
-```
-位置/速度テクスチャ (RGBA32F, 1024×1024)
-        │
-        ├─ ① 質量堆積 ──── 100万粒を加算ブレンドで 64³ 格子へ描く
-        │                   （512×512 テクスチャに Z スライスをタイル配置）
-        ├─ ② ポアソン解 ── ∇²φ = 4πGρ を Chebyshev 加速緩和で 14 パス
-        │                   前フレームの解から暖機始動
-        ├─ ③ 力の取得 ──── φ の勾配を三重線形補間で各粒子へ
-        │
-        ├─ ④ 積分 ──────── 1枚のフラグメントシェーダが MRT で
-        │                   位置と速度を同時に書き戻す
-        ├─ ⑤ 描画 ──────── gl.POINTS を gl_VertexID で引く（頂点バッファ無し）
-        └─ ⑥ ポスト ────── 自動露出 → ブライトパス → 分離ブラー → ACES 合成
-```
+1. **Deposit** each particle into its nearest grid cell, additively.
+2. **Solve** the discrete Poisson equation for the potential. A periodic box has no unique
+   solution, so the mean density is subtracted (the Jeans swindle).
+3. **Differentiate** the potential and interpolate the force back to the particles.
 
-粒子の順序も頂点バッファも存在しません。描画は `gl.drawArrays(gl.POINTS, 0, 1048576)` の
-1回だけで、頂点シェーダが `gl_VertexID` から自分の粒子をテクスチャ読みします。
+### Why Chebyshev, and how that number was found
 
----
+Plain Jacobi relaxation converges slowest for exactly the long-wavelength modes gravity cares
+about. Rather than guess a pass count, this repository carries an **exact CPU reference** —
+[`hotaru/pm.js`](hotaru/pm.js), a 3D-FFT Poisson solver — and
+[`test/pm.test.js`](test/pm.test.js) measures what the GPU actually needs:
 
-## 自己重力
+Passes per frame, warm-started from the previous frame, scored as the relative L2 error of the
+acceleration interpolated back to the particles — against the FFT solution of the *same*
+stencil, so this is iteration error alone:
 
-100万体の直接和は 10¹² 回の計算になり不可能なので、宇宙論の N 体計算と同じ
-**Particle-Mesh 法**を使います。
+| grid | Jacobi → 3% | Jacobi → 1% | Chebyshev → 3% | Chebyshev → 1% |
+|:--|--:|--:|--:|--:|
+| 32³ | ~70 | >128 | **~9** | **~15** |
+| 64³ | ~94 | ~210 | **~10** | **~26** |
+| 128³ | ~158 | >256 | **~15** | **~42** |
 
-1. **質量堆積** — 粒子を 1 点ずつ最近傍セルへ加算描画。テクスチャにはセルごとの粒子数が入る
-2. **ポアソン方程式** — 7点ステンシルを緩和して φ を求める。周期境界では解が一意に定まらないため
-   平均密度を差し引く（Jeans の swindle）
-3. **力** — `a = -∇φ` を三重線形補間で粒子位置へ戻す
+This is the operator's spectrum, not a tuning failure: a Jacobi sweep damps its slowest mode by
+only `(2 + cos(2π/N))/3` per pass — 0.9984 at 64³ — and that mode carries most of the
+potential's power, because φ<sub>k</sub> ~ ρ<sub>k</sub>/k². Chebyshev semi-iteration over the
+same sweep converges at 0.9449 per pass instead: the square-root-of-condition-number speedup,
+fully parallel, with no red/black parity to work out inside a z-slice atlas.
 
-### なぜ Chebyshev なのか
-
-素朴なヤコビ法は、重力が最も必要とする**長波長成分**の収束が極端に遅い。
-CPU 側に厳密解（3次元 FFT）の参照実装 [`hotaru/pm.js`](hotaru/pm.js) を置き、
-[`test/pm.test.js`](test/pm.test.js) で必要パス数を実測しました。
-
-| 格子 | 素朴なヤコビ | Chebyshev 加速 |
-|---|---|---|
-| 32³ | 約 105 パス | **約 12 パス** |
-| 64³ | 約 83 パス | **約 10 パス** |
-| 128³ | 約 227 パス | **約 22 パス** |
-
-（前フレームから暖機始動し、粒子への力の誤差を 3% 未満に保つ条件）
-
-ステンシルは完全に同一で、違うのは「何を書き戻すか」だけです。
+The stencil is identical. Only what gets written back differs:
 
 ```
-x_{k+1} = α (c₁ · sweep(x_k) − c₂ · x_k) − β · x_{k−1}
-          α = r_{k+1},  β = r_k · r_{k+1},  r_{k+1} = 1 / (2η − r_k)
+x[k+1] = alpha[k] * (c1 * sweep(x[k]) - c2 * x[k]) - beta[k] * x[k-1]
 ```
 
-ピンポンバッファが 2 枚から 3 枚に増え、パスごとに float ユニフォームが 2 個増えるだけ。
-本実装は 64³ で **14 パス**（3% 基準の約 10 パスに余裕を持たせた値）を走らせます。
+Three ping-pong buffers instead of two; `beta[0] = 0`, so the first pass never reads
+`x[k-1]`. `c1` and `c2` depend only on the grid size, `alpha` and `beta` only on the grid size
+and the pass index — two float uniforms per pass, computed once. This ships **24 passes** at
+64³: about 1% force error, which plain Jacobi would need some 210 passes to reach.
 
-この測定をしなかった場合の失敗の仕方が厄介です。参照実装の報告によれば、パス数が足りない
-ときの誤差は**ノイズではなく、多数のセルにまたがる滑らかなバイアス**として現れます。
-画面上はもっともらしく見えたまま、静かに間違った重力場になる。目視では気づけません。
+Subtracting the mean density is not optional and is free. Relax against the raw density and
+every pass shifts the mean potential by a fixed amount that never cancels, because the box has
+net mass — measured at −0.409 after 200 passes at 32³, matching prediction to 1e-9 and sliding
+linearly forever. In float32 the useful field would end up in the low bits of a large number.
+The mean needs no GPU reduction: CIC deposition conserves mass bit-exactly, so it is just
+`totalMass / L³`.
 
-### 正しさの確認
+**This is the part worth measuring.** Starved of passes, the solver does not produce visible
+noise. It produces a smooth, coherent bias spread over many cells: a plausible-looking field
+that is quietly the wrong one. You cannot catch that by looking at the screen.
 
-見た目では崩壊と膨張が区別できないので、位置テクスチャを読み戻して雲の半径を実測しました
-（[`tools/probe-gravity.js`](tools/probe-gravity.js)）。
+### Does the cloud actually fall?
 
-静止した球、ノイズ・初速ともゼロ、GM = 0.056:
+Collapse and expansion are indistinguishable by eye once the field fills the frame, so
+[`tools/probe-gravity.js`](tools/probe-gravity.js) reads the position texture back and measures
+the cloud radius directly. A sphere at rest, no noise, no initial velocity:
 
 ```
   t=0   rms 1.002
-  t=3   rms 0.889   contracting
-  t=5   rms 0.658   contracting
-  t=7   rms 0.188   contracting
-  t=8   rms 0.231   EXPANDING   ← 中心を通過して跳ね返る
+  t=3   rms 0.887   contracting
+  t=5   rms 0.654   contracting
+  t=7   rms 0.168   contracting
+  t=8   rms 0.255   EXPANDING   <- passes through the centre and rebounds
 ```
 
-自由落下時間の理論値 6.2 秒に対して実測 7 秒。散逸のない冷たい崩壊が中心を通り抜けて
-跳ね返るところまで、教科書どおりの挙動です。
+Predicted free-fall time 6.2 s, measured 7 s — and a dissipationless cold collapse that
+overshoots and rebounds, exactly as the textbook says it should.
 
 ---
 
-## 構成
+## Verification
 
-| ファイル | 中身 |
-|---|---|
-| [`hotaru/engine.js`](hotaru/engine.js) | WebGL2 の全て。GPGPU 積分、重力パイプライン、ブルーム、自動露出 |
-| [`hotaru/atlas.js`](hotaru/atlas.js) | 3D 格子を 2D テクスチャに畳む写像。GLSL と、それを検証する JS ミラー |
-| [`hotaru/pm.js`](hotaru/pm.js) | CPU 側の厳密な参照ソルバ（FFT / ヤコビ / Chebyshev / SOR）。ブラウザには載りません |
-| [`hotaru/noise.js`](hotaru/noise.js) | Simplex ノイズと、発散ゼロを数値検証したカール場 |
-| [`hotaru/shapes.js`](hotaru/shapes.js) | 8 種の手続き的形状生成器。全て決定的 |
-| [`hotaru/mask.js`](hotaru/mask.js) | ラスタライズした字形から、偏りなく点を取るサンプラー |
-| [`web/`](web) | 計器盤の外側。シェル（デザイン）とグルーコード |
-| [`tools/`](tools) | 実ブラウザを Chrome DevTools Protocol で駆動する検証ハーネス |
+`npm test` runs **5,335 checks**.
 
-各モジュールは「グローバルを 1 つ公開する IIFE」で、ビルドは**ただの連結**です。
-バンドラもトランスパイラも使いません。
+| suite | checks | what it proves |
+|:--|--:|:--|
+| noise | 182 | range, continuity, curl divergence under 10⁻³, GLSL and the JS mirror agree |
+| shapes | 539 | length, finiteness, radius bounds, determinism, and per-shape structure — the Fibonacci sphere's nearest-neighbour spacing has a coefficient of variation of 0.015; the galaxy's arms show 24× contrast in an angular histogram |
+| mask | 4,290 | every sampled point lands on a lit pixel, aspect preserved, orientation correct, coverage uniform |
+| atlas | 259 | cell↔texel bijection, and a linear field reproduced across both slice seams and the periodic boundary |
+| pm | 65 | mass and momentum conservation, a two-body circular orbit, Plummer-sphere equilibrium, self-force — and the pass-count measurement above |
 
----
-
-## 検証
-
-`npm test` が **5,335 件**を実行します。
-
-| スイート | 件数 | 主な内容 |
-|---|---|---|
-| noise | 182 | 値域・連続性・カール場の発散が 10⁻³ 未満・GLSL と JS ミラーの一致 |
-| shapes | 539 | 長さ・有限性・半径境界・決定性・形状ごとの構造検証（球の最近傍間隔の変動係数 0.015、銀河の腕が角度ヒストグラムで 24 倍のコントラスト、等） |
-| mask | 4,290 | 全点が発光画素上に着地・アスペクト保存・上下の向き・被覆の一様性 |
-| atlas | 259 | セル↔テクセルの全単射・スライス境界と周期境界をまたぐ線形場の再現 |
-| pm | 65 | 質量保存・運動量保存・2体円軌道・Plummer 球の平衡・自己力・**必要パス数の測定** |
-
-加えて [`tools/verify-hotaru.js`](tools/verify-hotaru.js) が実際の Chrome を起動し、
-20 の状態（アイドル、ドラッグ、日本語入力、ラテン入力、7 形状、重力 2〜28 秒、携帯ビューポート）を
-撮影して JS エラー・シェーダ失敗・空画面を検査します。
+Separately, [`tools/verify-hotaru.js`](tools/verify-hotaru.js) launches real Chrome and drives
+20 states — idle, drag, Japanese input, Latin input, all seven shapes, gravity at 2–28 s, and a
+phone viewport — checking each for shader failures, JavaScript errors and blank frames.
 
 ---
 
-## 性能
+## Performance
 
 | | |
-|---|---|
-| 粒子数 | 1,048,576（自動的に段階を下げる。携帯は 262,144 から開始） |
-| フレームレート | 60 fps（RTX 5070 Ti、垂直同期の上限に張り付き） |
-| 毎フレームの重力計算 | 100万粒の堆積 + 512×512 上で 14 回のポアソン緩和 |
-| ファイルサイズ | 単一 HTML で約 170 KB |
-
-`?n=65536` を URL に付けると粒子数を固定できます（非力な端末や検証用）。
+|:--|:--|
+| particles | 1,048,576, stepping down automatically; phones start at 262,144 |
+| frame rate | 60 fps on an RTX 5070 Ti, pinned to vsync |
+| per frame | a million-point deposition plus 24 Poisson passes over 512×512 |
+| size | ~170 KB, single self-contained HTML file |
 
 ---
 
-## 既知の限界
+## Known limits
 
-正直に書いておきます。
+Stated plainly, because a demo that hides its approximations is not worth reading.
 
-- **堆積は最近傍セル（NGP）、補間は三重線形**で、カーネルが一致していません。厳密には
-  わずかな自己力が生じます。点スプライトは 1 テクセルにしか書けないため CIC 堆積には
-  8 パスが必要で、視覚作品としては割に合わないと判断しました。参照実装によれば、
-  力が信頼できるのは約 4 セル以上離れた相手に対してです。
-- **周期境界の箱**なので、遠方の鏡像からの力がわずかに残ります。箱は雲の数倍の大きさを
-  取っていますが、ゼロではありません。
-- 半径 2.4 を超えると**人工的な封じ込め力**が働きます。周期境界の巻き込みを防ぐためで、
-  物理ではありません。
-- 32bit float テクスチャへの加算ブレンドには `EXT_float_blend` が必要です。無い環境では
-  16bit にフォールバックし、1 セルあたり約 2048 粒子を超えると加算が飽和します。
-- ライブラリを使っていないのは矜持ではなく、**依存を足すと 1 ファイルで配れなくなる**からです。
+- **Deposition is nearest-grid-point; interpolation is trilinear.** The kernels do not match, so
+  a small self-force exists. Cloud-in-cell deposition would need eight passes, since a point
+  sprite can only write one texel — not a trade worth making for a visual piece. The reference
+  puts the trustworthy range at roughly four cells and beyond.
+- **The box is periodic**, so a residue of force from distant images remains. The box is several
+  times the size of the cloud, but the residue is not zero.
+- **An artificial containment force** acts beyond radius 2.4, to keep particles from wrapping
+  around the periodic box. That is bookkeeping, not physics.
+- **Additive blending into 32-bit float targets needs `EXT_float_blend`.** Without it the mass
+  grid falls back to 16-bit, where accumulation saturates past roughly 2,048 particles per cell.
+- **No dependencies is a constraint, not a boast** — adding one would end the single-file
+  distribution that makes this openable by anyone.
 
 ---
 
-## ライセンス
+## Repository
+
+| path | contents |
+|:--|:--|
+| [`hotaru/engine.js`](hotaru/engine.js) | all the WebGL2: GPGPU integration, the gravity pipeline, bloom, auto-exposure |
+| [`hotaru/atlas.js`](hotaru/atlas.js) | the 3D-grid-in-2D-texture mapping, as GLSL plus a JS mirror that proves it |
+| [`hotaru/pm.js`](hotaru/pm.js) | the exact CPU reference solver (FFT / Jacobi / Chebyshev / SOR). Not shipped to the browser |
+| [`hotaru/noise.js`](hotaru/noise.js) | simplex noise and a curl field verified divergence-free |
+| [`hotaru/shapes.js`](hotaru/shapes.js) | eight deterministic procedural generators |
+| [`hotaru/mask.js`](hotaru/mask.js) | even point sampling from a rasterised glyph |
+| [`web/`](web) | the page: shell and glue |
+| [`tools/`](tools) | the Chrome-driven verification harness and the physics probes |
+
+Every module is an IIFE publishing one global, so the build is plain concatenation.
+
+---
+
+## Licence
 
 [Apache License 2.0](LICENSE)
 
-Simplex ノイズは Stefan Gustavson と Ashima Arts による実装に基づいています（MIT）。
+The 3D simplex noise is a transcription of the implementation by Stefan Gustavson and
+Ashima Arts (MIT).
