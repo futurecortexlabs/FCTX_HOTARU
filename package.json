@@ -1,7 +1,7 @@
 {
   "name": "fctx-hotaru",
   "version": "1.0.0",
-  "description": "A million GPU particles that form typed text, then collapse under their own self-gravity. WebGL2, no dependencies, one HTML file.",
+  "description": "百万個のGPU粒子が、打ち込んだ言葉のかたちに集まる。放てば自らの重力で崩れ、銀河になる。WebGL2 / Particle-Mesh法による重力多体計算 / 依存ライブラリなし / HTML1ファイル",
   "license": "Apache-2.0",
   "author": "FutureCortex Labs",
   "private": false,
