@@ -3,3 +3,5 @@ docs/preview.html
 docs/shots/
 *.log
 .DS_Store
+public/
+.vercel/

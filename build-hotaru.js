@@ -69,6 +69,23 @@ const preview = [
 ].join('\n');
 fs.writeFileSync(path.join(ROOT, 'docs', 'preview.html'), preview, 'utf8');
 
+/* Vercel serves the file as-is with no wrapper, so it gets a complete document:
+   without the charset and viewport metas a phone lays the page out at desktop
+   width. Painted dark from the first byte, since that is the page's only ground. */
+const standalone = [
+  '<!doctype html>',
+  '<html lang="ja"><head>',
+  '<meta charset="utf-8">',
+  '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">',
+  '<meta name="description" content="A million GPU particles gather into the word you type, then collapse under their own gravity. 百万個の光の粒が言葉のかたちに集まり、放てば自らの重力で崩れる。">',
+  '<style>html,body{margin:0;background:#04050A}[hidden]{display:none!important}</style>',
+  '</head><body>',
+  out,
+  '</body></html>',
+].join('\n');
+fs.mkdirSync(path.join(ROOT, 'public'), { recursive: true });
+fs.writeFileSync(path.join(ROOT, 'public', 'index.html'), standalone, 'utf8');
+
 const kb = (n) => (n / 1024).toFixed(1) + ' KB';
 for (const m of MODULES) {
   const state = has(m.file) ? String(read(m.file).split('\n').length).padStart(6) + ' lines' : '     — missing';
